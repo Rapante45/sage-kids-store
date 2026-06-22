@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Producto – Sage Kids</title>
+  <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root { --green:#2d5a3d; --green2:#3a7a54; --green-light:#e8f5ec; --sun:#f5c842; --sun2:#f7a800; --cream:#fdf8f0; --text:#1a2e22; --muted:#6b8f77; --white:#ffffff; }
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:'Nunito',sans-serif;background:var(--cream);color:var(--text);}
+    header{background:var(--green);position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(0,0,0,.2);}
+    .header-inner{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:14px 24px;}
+    .logo{display:flex;align-items:center;gap:8px;text-decoration:none;}
+    .logo-box{background:var(--green);border:2px solid rgba(255,255,255,.25);border-radius:10px;padding:6px 12px;display:flex;flex-direction:column;align-items:center;}
+    .logo-sage{font-family:'Dancing Script',cursive;font-size:1.7rem;color:var(--white);line-height:1;position:relative;}
+    .logo-sage::after{content:"☀";position:absolute;top:-4px;right:-18px;font-size:.9rem;color:var(--sun);}
+    .logo-kids{font-size:.75rem;font-weight:800;letter-spacing:4px;color:rgba(255,255,255,.8);text-transform:uppercase;}
+    .btn-cart{background:var(--sun);color:var(--green);border:none;border-radius:50px;padding:8px 18px;font-weight:800;font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:6px;font-family:'Nunito',sans-serif;}
+    .cart-count{background:var(--green);color:var(--white);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:900;}
+
+    /* Breadcrumb */
+    .breadcrumb{max-width:1200px;margin:0 auto;padding:16px 24px;font-size:.82rem;color:var(--muted);}
+    .breadcrumb a{color:var(--green);text-decoration:none;font-weight:700;}
+    .breadcrumb a:hover{text-decoration:underline;}
+
+    /* Product layout */
+    .product-page{max-width:1200px;margin:0 auto;padding:0 24px 64px;display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:start;}
+    
+    /* Gallery */
+    .gallery{position:sticky;top:90px;}
+    .main-img{width:100%;border-radius:24px;overflow:hidden;background:var(--white);box-shadow:0 4px 24px rgba(0,0,0,.1);aspect-ratio:1;display:flex;align-items:center;justify-content:center;font-size:8rem;margin-bottom:12px;}
+    .main-img img{width:100%;height:100%;object-fit:cover;}
+    .thumb-row{display:flex;gap:10px;}
+    .thumb{width:72px;height:72px;border-radius:12px;border:2px solid var(--green-light);cursor:pointer;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:2rem;transition:border-color .2s;}
+    .thumb.active{border-color:var(--green);}
+    .thumb img{width:100%;height:100%;object-fit:cover;}
+
+    /* Info */
+    .product-info-panel{padding-top:8px;}
+    .pi-badge{display:inline-block;border-radius:50px;padding:3px 12px;font-size:.72rem;font-weight:800;margin-bottom:10px;}
+    .badge-new{background:var(--green-light);color:var(--green);}
+    .badge-sale{background:#fdeaea;color:#e05c5c;}
+    .pi-name{font-family:'Dancing Script',cursive;font-size:2.2rem;color:var(--green);line-height:1.1;margin-bottom:8px;}
+    .pi-cat{color:var(--muted);font-size:.9rem;margin-bottom:16px;}
+    .pi-price{display:flex;align-items:baseline;gap:10px;margin-bottom:20px;}
+    .pi-price .current{font-size:2rem;font-weight:800;color:var(--green);}
+    .pi-price .old{font-size:1rem;color:var(--muted);text-decoration:line-through;}
+    .pi-price .saving{font-size:.8rem;background:#fdeaea;color:#e05c5c;border-radius:50px;padding:2px 10px;font-weight:700;}
+    .pi-desc{color:var(--muted);line-height:1.8;font-size:.95rem;margin-bottom:24px;}
+    
+    .pi-label{font-size:.82rem;font-weight:700;color:var(--muted);margin-bottom:8px;}
+    .size-grid{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;}
+    .size-btn{border:2px solid var(--green-light);border-radius:10px;padding:8px 16px;font-weight:700;font-size:.88rem;cursor:pointer;background:none;transition:all .2s;font-family:'Nunito',sans-serif;}
+    .size-btn:hover,.size-btn.active{border-color:var(--green);background:var(--green-light);color:var(--green);}
+    .size-btn.out{opacity:.4;cursor:not-allowed;text-decoration:line-through;}
+
+    .qty-row{display:flex;align-items:center;gap:14px;margin-bottom:24px;}
+    .qty-btn{width:38px;height:38px;border-radius:50%;border:2px solid var(--green-light);background:none;font-size:1.3rem;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--green);font-family:'Nunito',sans-serif;}
+    .qty-btn:hover{border-color:var(--green);background:var(--green-light);}
+    .qty-value{font-size:1.1rem;font-weight:800;min-width:28px;text-align:center;}
+    .qty-stock{font-size:.8rem;color:var(--muted);}
+
+    .btn-add-big{width:100%;padding:15px;background:var(--green);color:var(--white);border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-size:1.05rem;font-weight:800;cursor:pointer;transition:background .2s,transform .15s;margin-bottom:10px;}
+    .btn-add-big:hover{background:var(--green2);transform:translateY(-2px);}
+
+    .pi-features{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:24px;}
+    .pi-feat{display:flex;align-items:center;gap:8px;font-size:.82rem;color:var(--muted);}
+    .pi-feat span{font-size:1.1rem;}
+
+    /* Related */
+    .related-section{max-width:1200px;margin:0 auto;padding:0 24px 64px;}
+    .section-title{text-align:center;margin-bottom:32px;}
+    .section-title h2{font-family:'Dancing Script',cursive;font-size:2rem;color:var(--green);}
+    .section-title .sun-divider{font-size:1.2rem;margin:6px 0;}
+    .related-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;}
+    .product-card{background:var(--white);border-radius:20px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);transition:transform .25s,box-shadow .25s;cursor:pointer;}
+    .product-card:hover{transform:translateY(-6px);box-shadow:0 12px 32px rgba(45,90,61,.15);}
+    .product-img{height:160px;display:flex;align-items:center;justify-content:center;font-size:3.5rem;position:relative;overflow:hidden;}
+    .product-img img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+    .product-info{padding:14px;}
+    .product-name{font-weight:800;font-size:.88rem;margin-bottom:4px;}
+    .product-price{font-weight:800;font-size:1rem;color:var(--green);}
+
+    /* Toast */
+    .toast{position:fixed;bottom:32px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--green);color:var(--white);border-radius:50px;padding:12px 28px;font-weight:700;font-size:.9rem;box-shadow:0 8px 24px rgba(0,0,0,.2);transition:transform .3s ease;z-index:9999;}
+    .toast.show{transform:translateX(-50%) translateY(0);}
+
+    /* Cart sidebar */
+    .sidebar{display:none;position:fixed;top:0;right:0;width:380px;height:100vh;background:var(--white);z-index:200;box-shadow:-8px 0 32px rgba(0,0,0,.15);flex-direction:column;animation:slideIn .3s ease;}
+    .sidebar.open{display:flex;}
+    @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
+    .sidebar-header{background:var(--green);color:var(--white);padding:20px 24px;display:flex;align-items:center;justify-content:space-between;}
+    .sidebar-header h3{font-family:'Dancing Script',cursive;font-size:1.6rem;}
+    .sidebar-close{background:none;border:none;color:var(--white);font-size:1.4rem;cursor:pointer;}
+    .sidebar-body{flex:1;overflow-y:auto;padding:20px 24px;}
+    .sidebar-footer{padding:20px 24px;border-top:2px solid var(--green-light);}
+    .sidebar-total{display:flex;justify-content:space-between;font-weight:800;font-size:1.05rem;margin-bottom:14px;}
+    .empty-cart{text-align:center;color:var(--muted);padding:40px 0;}
+    .cart-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--green-light);font-size:.88rem;}
+    .cart-item-left{display:flex;align-items:center;gap:10px;}
+    .btn-pay{width:100%;padding:13px;background:var(--green);color:var(--white);border:none;border-radius:14px;font-family:'Nunito',sans-serif;font-size:1rem;font-weight:800;cursor:pointer;}
+
+    footer{background:var(--green);color:rgba(255,255,255,.7);text-align:center;padding:24px;font-size:.85rem;}
+    footer strong{color:var(--sun);}
+
+    @media(max-width:768px){
+      .product-page{grid-template-columns:1fr;gap:24px;}
+      .gallery{position:static;}
+      .pi-features{grid-template-columns:1fr;}
+      .sidebar{width:100%;}
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="sage-kids.html">
+      <div class="logo-box">
+        <span class="logo-sage">Sage</span>
+        <span class="logo-kids">kids</span>
+      </div>
+    </a>
+    <div>
+      <button class="btn-cart" onclick="toggleSidebar()">
+        🛒 Carrito <span class="cart-count" id="cartCount">0</span>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="breadcrumb">
+  <a href="sage-kids.html">Inicio</a> › <span id="breadProduct">Producto</span>
+</div>
+
+<div class="product-page" id="productPage">
+  <!-- cargado por JS -->
+</div>
+
+<section class="related-section">
+  <div class="section-title">
+    <h2>También te puede gustar</h2>
+    <div class="sun-divider">☀</div>
+  </div>
+  <div class="related-grid" id="relatedGrid"></div>
+</section>
+
+<footer>
+  <p>© 2025 <strong>Sage Kids</strong> — Ropa infantil con corazón 🌿☀</p>
+</footer>
+
+<!-- Cart sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h3>🛒 Tu carrito</h3>
+    <button class="sidebar-close" onclick="toggleSidebar()">✕</button>
+  </div>
+  <div class="sidebar-body" id="sidebarBody"></div>
+  <div class="sidebar-footer" id="sidebarFooter"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const FALLBACK_PRODUCTS = [
+    {id:1,name:"Vestido Floral Primavera",cat:"niña",price:189,oldPrice:null,emoji:"👗",bg:"#fde8ef",badge:"new",sizes:["4T","5","6","7"],stock:30,desc:"Ligero y colorido para el verano. Tela 100% algodón orgánico, perfecta para días cálidos. Fácil de lavar y mantiene su color lavado tras lavado."},
+    {id:2,name:"Camiseta Cohete Espacial",cat:"niño",price:89,oldPrice:null,emoji:"🚀",bg:"#daeeff",badge:null,sizes:["4T","5","6"],stock:45,desc:"Perfecta para los pequeños exploradores. Estampado de cohete espacial con colores brillantes que no destiñen."},
+    {id:3,name:"Conjunto Bebé Osito",cat:"bebé",price:245,oldPrice:299,emoji:"🐻",bg:"#fef3e2",badge:"sale",sizes:["6-12m","12-18m"],stock:15,desc:"Suave algodón orgánico en dos piezas. Incluye bodybody y pantalón a juego con orejas de osito en la capucha."},
+    {id:4,name:"Pantalón Jogger Verde",cat:"niño",price:135,oldPrice:null,emoji:"🌿",bg:"#e0f5e8",badge:null,sizes:["5","6","7","8"],stock:28,desc:"Cómodo para el día a día. Cintura elástica ajustable y bolsillos laterales. Tela suave anti-pilling."},
+    {id:5,name:"Abrigo Estrellitas",cat:"outerwear",price:320,oldPrice:399,emoji:"⭐",bg:"#fff0d6",badge:"sale",sizes:["S","M","L"],stock:8,desc:"Calidez con estilo. Forro interior polar, cierre frontal con botones forrados y bordado de estrellas."},
+    {id:6,name:"Vestido Lunares Niña",cat:"niña",price:165,oldPrice:null,emoji:"🎀",bg:"#fde8ef",badge:"new",sizes:["4T","5","6"],stock:20,desc:"Lunares clásicos en rosa y blanco. Incluye lazo removible en la cintura y bolsillos decorativos."},
+    {id:7,name:"Tenis Saltarines",cat:"calzado",price:220,oldPrice:null,emoji:"👟",bg:"#e8ecff",badge:null,sizes:["21","22","23","24"],stock:18,desc:"Suela antideslizante y plantilla acolchada. Cierre de velcro para que los niños los pongan solos."},
+    {id:8,name:"Pijama Dinos Bebé",cat:"bebé",price:175,oldPrice:210,emoji:"🦕",bg:"#e6f5f0",badge:"sale",sizes:["0-3m","3-6m"],stock:12,desc:"Suave franela con dinosaurios. Dos piezas: camisa y pantalón de amarre en la cintura."},
+    {id:9,name:"Camisa Cuadros Niño",cat:"niño",price:115,oldPrice:null,emoji:"👔",bg:"#daeeff",badge:null,sizes:["5","6","7"],stock:22,desc:"Cuadros clásicos en azul y verde. Botones de nácar y dobladillo liso para usar por dentro o fuera."},
+    {id:10,name:"Falda Tul Rosa",cat:"niña",price:145,oldPrice:null,emoji:"🌸",bg:"#fde8ef",badge:"new",sizes:["4T","5","6"],stock:16,desc:"Capas de tul suave color rosa pastel. Forrada en algodón por dentro para máxima comodidad."},
+    {id:11,name:"Chaqueta Lluvia",cat:"outerwear",price:280,oldPrice:null,emoji:"🌧️",bg:"#d6eeff",badge:null,sizes:["XS","S","M","L"],stock:14,desc:"Impermeable liviana con capucha integrada. Ideal para el invierno guatemalteco."},
+    {id:12,name:"Sandalias Mariposa",cat:"calzado",price:195,oldPrice:240,emoji:"🦋",bg:"#fff0d6",badge:"sale",sizes:["20","21","22","23"],stock:10,desc:"Sandalias con decoración de mariposa en relieve. Correa ajustable y suela de goma antideslizante."},
+  ];
+
+  const storedProducts = localStorage.getItem('sk_store_products');
+  const products = storedProducts ? JSON.parse(storedProducts) : FALLBACK_PRODUCTS;
+
+  const params  = new URLSearchParams(location.search);
+  const pid     = parseInt(params.get('id'));
+  const product = products.find(p => p.id === pid);
+
+  let cart     = [];
+  let selSize  = null;
+  let selQty   = 1;
+
+  function catLabel(c){return{niña:'Ropa niña',niño:'Ropa niño',bebé:'Ropa bebé',outerwear:'Abrigo',calzado:'Calzado'}[c]||c;}
+
+  if (!product) {
+    document.getElementById('productPage').innerHTML = '<p style="padding:64px 24px;text-align:center;color:var(--muted)">Producto no encontrado. <a href="sage-kids.html" style="color:var(--green)">Volver a la tienda</a></p>';
+  } else {
+    document.title = product.name + ' – Sage Kids';
+    document.getElementById('breadProduct').textContent = product.name;
+
+    const saving = product.oldPrice ? Math.round(100 - (product.price / product.oldPrice) * 100) : 0;
+    const sizeList = (product.sizes && product.sizes.length) ? product.sizes : ['S','M','L','XL'];
+    const imgHtml  = product.img
+      ? `<img src="${product.img}" alt="${product.name}"/>`
+      : product.emoji;
+    const thumbHtml = product.img
+      ? `<div class="thumb active"><img src="${product.img}" alt=""/></div>`
+      : `<div class="thumb active" style="background:${product.bg}">${product.emoji}</div>`;
+
+    document.getElementById('productPage').innerHTML = `
+      <div class="gallery">
+        <div class="main-img" style="background:${product.bg}" id="mainImg">${imgHtml}</div>
+        <div class="thumb-row">${thumbHtml}</div>
+      </div>
+
+      <div class="product-info-panel">
+        ${product.badge === 'new'  ? '<span class="pi-badge badge-new">✨ NUEVO</span>'  : ''}
+        ${product.badge === 'sale' ? '<span class="pi-badge badge-sale">🔴 OFERTA</span>' : ''}
+        <h1 class="pi-name">${product.name}</h1>
+        <p class="pi-cat">🏷️ ${catLabel(product.cat)}</p>
+        <div class="pi-price">
+          ${product.oldPrice ? `<span class="old">Q${product.oldPrice}</span>` : ''}
+          <span class="current">Q${product.price}</span>
+          ${saving > 0 ? `<span class="saving">-${saving}%</span>` : ''}
+        </div>
+        <p class="pi-desc">${product.desc || 'Prenda de alta calidad para los más pequeños de la casa.'}</p>
+
+        <div class="pi-label">Selecciona tu talla</div>
+        <div class="size-grid" id="sizeGrid">
+          ${sizeList.map(s => `<button class="size-btn" onclick="selectSize(this,'${s}')">${s}</button>`).join('')}
+        </div>
+
+        <div class="pi-label">Cantidad</div>
+        <div class="qty-row">
+          <button class="qty-btn" onclick="changeQty(-1)">−</button>
+          <span class="qty-value" id="qtyVal">1</span>
+          <button class="qty-btn" onclick="changeQty(1)">+</button>
+          <span class="qty-stock">${product.stock > 0 ? `${product.stock} disponibles` : '⚠️ Sin stock'}</span>
+        </div>
+
+        <button class="btn-add-big" onclick="addToCart()">🛒 Agregar al carrito</button>
+
+        <div class="pi-features">
+          <div class="pi-feat"><span>🌿</span> Algodón orgánico certificado</div>
+          <div class="pi-feat"><span>🚚</span> Envío en 2–5 días hábiles</div>
+          <div class="pi-feat"><span>↩️</span> Devolución en 30 días</div>
+          <div class="pi-feat"><span>🔒</span> Pago 100% seguro</div>
+        </div>
+      </div>
+    `;
+
+    // Related products (same category, excluding current)
+    const related = products.filter(p => p.cat === product.cat && p.id !== product.id).slice(0, 4);
+    document.getElementById('relatedGrid').innerHTML = related.length
+      ? related.map(p => `
+        <div class="product-card" onclick="location.href='producto.html?id=${p.id}'">
+          <div class="product-img" style="background:${p.bg}">
+            ${p.img ? `<img src="${p.img}" alt="${p.name}"/>` : p.emoji}
+          </div>
+          <div class="product-info">
+            <div class="product-name">${p.name}</div>
+            <div class="product-price">Q${p.price}</div>
+          </div>
+        </div>`).join('')
+      : '<p style="color:var(--muted);font-size:.9rem">No hay más productos en esta categoría aún.</p>';
+  }
+
+  function selectSize(btn, size) {
+    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    selSize = size;
+  }
+
+  function changeQty(d) {
+    selQty = Math.max(1, selQty + d);
+    document.getElementById('qtyVal').textContent = selQty;
+  }
+
+  function addToCart() {
+    if (!product) return;
+    if (!selSize) { showToast('⚠️ Selecciona una talla primero'); return; }
+    const key = `${product.id}-${selSize}`;
+    const ex  = cart.find(x => x.cartKey === key);
+    if (ex) ex.qty += selQty;
+    else cart.push({...product, qty:selQty, size:selSize, cartKey:key});
+    updateCartCount();
+    showToast(`✅ ${product.emoji} ${product.name} (${selSize}) ×${selQty} agregado`);
+  }
+
+  function updateCartCount() { document.getElementById('cartCount').textContent = cart.reduce((a,b)=>a+b.qty,0); }
+
+  function toggleSidebar() {
+    const s = document.getElementById('sidebar');
+    s.classList.toggle('open');
+    if (s.classList.contains('open')) renderSidebar();
+  }
+
+  function renderSidebar() {
+    const body = document.getElementById('sidebarBody'), footer = document.getElementById('sidebarFooter');
+    if (cart.length === 0) { body.innerHTML = '<div class="empty-cart" style="text-align:center;color:var(--muted);padding:40px 0"><div style="font-size:3rem">🛒</div><p>Tu carrito está vacío</p></div>'; footer.innerHTML=''; return; }
+    body.innerHTML = cart.map(item => `
+      <div class="cart-item">
+        <div class="cart-item-left">
+          <span style="font-size:1.4rem">${item.emoji}</span>
+          <div><div style="font-weight:800">${item.name}</div><div style="font-size:.75rem;color:var(--muted)">Talla: ${item.size} · Cant: ${item.qty}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-weight:800;color:var(--green)">Q${item.price*item.qty}</span>
+          <button onclick="removeItem('${item.cartKey}')" style="background:none;border:none;cursor:pointer;color:var(--muted)">✕</button>
+        </div>
+      </div>`).join('');
+    const total = cart.reduce((a,b)=>a+b.price*b.qty,0);
+    footer.innerHTML = `
+      <div class="sidebar-total"><span>Total:</span><span>Q${total}</span></div>
+      <button class="btn-pay" onclick="goCheckout()">🔒 Finalizar compra · Q${total}</button>`;
+  }
+
+  function removeItem(key) { cart = cart.filter(x => x.cartKey !== key); updateCartCount(); renderSidebar(); }
+
+  function goCheckout() {
+    // Pasar carrito a la tienda principal vía sessionStorage y redirigir
+    sessionStorage.setItem('sk_checkout_cart', JSON.stringify(cart));
+    window.location.href = 'sage-kids.html#checkout';
+  }
+
+  function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
+</script>
+</body>
+</html>
