@@ -470,9 +470,7 @@
           <label style="flex:1;min-width:140px;display:flex;align-items:center;gap:8px;background:var(--green-light);border-radius:12px;padding:12px;cursor:pointer;font-size:.85rem;font-weight:700">
             <input type="radio" name="delivery" value="standard" checked onchange="updateDelivery(this.value)"/> 🚚 Estándar (Q25) <span style="color:var(--muted);font-weight:400">2-5 días</span>
           </label>
-          <label style="flex:1;min-width:140px;display:flex;align-items:center;gap:8px;background:var(--green-light);border-radius:12px;padding:12px;cursor:pointer;font-size:.85rem;font-weight:700">
-            <input type="radio" name="delivery" value="express" onchange="updateDelivery(this.value)"/> ⚡ Express (Q55) <span style="color:var(--muted);font-weight:400">24h</span>
-          </label>
+         
         </div>
 
         <button class="btn-pay" onclick="goToStep2()">Continuar al pago →</button>
@@ -512,7 +510,7 @@
   // ── WhatsApp ──
   // 👉 Pon aquí el número de WhatsApp de la tienda, con código de país, SIN signos ni espacios
   // Ejemplo Guatemala: 50212345678
-  const WHATSAPP_NUMBER = '58727210';
+  const WHATSAPP_NUMBER = '50258727210';
 
   // ── Hamburger ──
   function toggleMenu() {
