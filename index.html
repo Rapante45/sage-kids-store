@@ -504,11 +504,17 @@
 <!-- ═══ TOAST ═══ -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
   // ── WhatsApp ──
   // 👉 Pon aquí el número de WhatsApp de la tienda, con código de país, SIN signos ni espacios
   // Ejemplo Guatemala: 50212345678
   const WHATSAPP_NUMBER = '50258727210';
+
+  // ── Supabase (misma base de datos que usa el panel admin) ──
+  const SUPABASE_URL = 'https://hwnqdfrzjewjkghcsbtv.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3bnFkZnJ6amV3amtnaGNzYnR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTM3MTQsImV4cCI6MjEwNTg2OTcxNH0.d_Gr_WZcQBTBkM5pOyMTEFhyyUEGh5WX-4bxl9Ge6Y8';
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
   // ── Hamburger ──
   function toggleMenu() {
@@ -519,28 +525,33 @@
   }
 
   // ── Products ──
-  // 'sk_products' es la fuente de verdad compartida con el panel admin y con producto.html.
+  // Supabase es la fuente de verdad compartida con el panel admin y con producto.html.
+  // Si por algún motivo no hay conexión, se usa este catálogo como respaldo para que
+  // la página no se quede en blanco (aunque sin sincronización real de stock).
   const FALLBACK_PRODUCTS = [
-    { id:1,  name:"Vestido Floral Primavera", cat:"niña",      price:189, oldPrice:null, emoji:"👗", bg:"#fde8ef", badge:"new",  stock:30, sizes:["4T","5","6","7"] },
-    { id:2,  name:"Camiseta Cohete Espacial", cat:"niño",      price:89,  oldPrice:null, emoji:"🚀", bg:"#daeeff", badge:null,   stock:45, sizes:["4T","5","6"] },
-    { id:3,  name:"Conjunto Bebé Osito",      cat:"bebé",      price:245, oldPrice:299,  emoji:"🐻", bg:"#fef3e2", badge:"sale", stock:15, sizes:["6-12m","12-18m"] },
-    { id:4,  name:"Pantalón Jogger Verde",    cat:"niño",      price:135, oldPrice:null, emoji:"🌿", bg:"#e0f5e8", badge:null,   stock:28, sizes:["5","6","7","8"] },
-    { id:5,  name:"Abrigo Estrellitas",       cat:"outerwear", price:320, oldPrice:399,  emoji:"⭐", bg:"#fff0d6", badge:"sale", stock:8,  sizes:["S","M","L"] },
-    { id:6,  name:"Vestido Lunares Niña",     cat:"niña",      price:165, oldPrice:null, emoji:"🎀", bg:"#fde8ef", badge:"new",  stock:20, sizes:["4T","5","6"] },
-    { id:7,  name:"Tenis Saltarines",         cat:"calzado",   price:220, oldPrice:null, emoji:"👟", bg:"#e8ecff", badge:null,   stock:18, sizes:["21","22","23","24"] },
-    { id:8,  name:"Pijama Dinos Bebé",        cat:"bebé",      price:175, oldPrice:210,  emoji:"🦕", bg:"#e6f5f0", badge:"sale", stock:12, sizes:["0-3m","3-6m"] },
-    { id:9,  name:"Camisa Cuadros Niño",      cat:"niño",      price:115, oldPrice:null, emoji:"👔", bg:"#daeeff", badge:null,   stock:22, sizes:["5","6","7"] },
-    { id:10, name:"Falda Tul Rosa",           cat:"niña",      price:145, oldPrice:null, emoji:"🌸", bg:"#fde8ef", badge:"new",  stock:16, sizes:["4T","5","6"] },
-    { id:11, name:"Chaqueta Lluvia",          cat:"outerwear", price:280, oldPrice:null, emoji:"🌧️", bg:"#d6eeff", badge:null,  stock:14, sizes:["XS","S","M","L"] },
-    { id:12, name:"Sandalias Mariposa",       cat:"calzado",   price:195, oldPrice:240,  emoji:"🦋", bg:"#fff0d6", badge:"sale", stock:10, sizes:["20","21","22","23"] },
+    { id:1,  name:"Vestido Floral Primavera", cat:"niña",      price:189, old_price:null, emoji:"👗", bg:"#fde8ef", badge:"new",  stock:30, sizes:["4T","5","6","7"] },
+    { id:2,  name:"Camiseta Cohete Espacial", cat:"niño",      price:89,  old_price:null, emoji:"🚀", bg:"#daeeff", badge:null,   stock:45, sizes:["4T","5","6"] },
+    { id:3,  name:"Conjunto Bebé Osito",      cat:"bebé",      price:245, old_price:299,  emoji:"🐻", bg:"#fef3e2", badge:"sale", stock:15, sizes:["6-12m","12-18m"] },
+    { id:4,  name:"Pantalón Jogger Verde",    cat:"niño",      price:135, old_price:null, emoji:"🌿", bg:"#e0f5e8", badge:null,   stock:28, sizes:["5","6","7","8"] },
+    { id:5,  name:"Abrigo Estrellitas",       cat:"outerwear", price:320, old_price:399,  emoji:"⭐", bg:"#fff0d6", badge:"sale", stock:8,  sizes:["S","M","L"] },
+    { id:6,  name:"Vestido Lunares Niña",     cat:"niña",      price:165, old_price:null, emoji:"🎀", bg:"#fde8ef", badge:"new",  stock:20, sizes:["4T","5","6"] },
+    { id:7,  name:"Tenis Saltarines",         cat:"calzado",   price:220, old_price:null, emoji:"👟", bg:"#e8ecff", badge:null,   stock:18, sizes:["21","22","23","24"] },
+    { id:8,  name:"Pijama Dinos Bebé",        cat:"bebé",      price:175, old_price:210,  emoji:"🦕", bg:"#e6f5f0", badge:"sale", stock:12, sizes:["0-3m","3-6m"] },
+    { id:9,  name:"Camisa Cuadros Niño",      cat:"niño",      price:115, old_price:null, emoji:"👔", bg:"#daeeff", badge:null,   stock:22, sizes:["5","6","7"] },
+    { id:10, name:"Falda Tul Rosa",           cat:"niña",      price:145, old_price:null, emoji:"🌸", bg:"#fde8ef", badge:"new",  stock:16, sizes:["4T","5","6"] },
+    { id:11, name:"Chaqueta Lluvia",          cat:"outerwear", price:280, old_price:null, emoji:"🌧️", bg:"#d6eeff", badge:null,  stock:14, sizes:["XS","S","M","L"] },
+    { id:12, name:"Sandalias Mariposa",       cat:"calzado",   price:195, old_price:240,  emoji:"🦋", bg:"#fff0d6", badge:"sale", stock:10, sizes:["20","21","22","23"] },
   ];
-  const storedProducts = localStorage.getItem('sk_products');
-  let products = storedProducts ? JSON.parse(storedProducts) : FALLBACK_PRODUCTS;
-  function persistProducts() { localStorage.setItem('sk_products', JSON.stringify(products)); }
+  let products = [];
+  async function loadProducts() {
+    const { data, error } = await sb.from('products').select('*').order('id');
+    products = (!error && data && data.length) ? data : FALLBACK_PRODUCTS;
+  }
 
   // ── Reviews ──
-  function renderReviews() {
-    const reviews = JSON.parse(localStorage.getItem('sk_reviews') || '[]');
+  async function renderReviews() {
+    const { data, error } = await sb.from('reviews').select('*').order('created_at', { ascending: false });
+    const reviews = (!error && data) ? data : [];
     const grid = document.getElementById('reviewsGrid');
     if (reviews.length === 0) {
       grid.innerHTML = '<div class="reviews-empty">⭐ Sé el primero en compartirnos tu experiencia.</div>';
@@ -554,7 +565,7 @@
           <div class="review-avatar">${r.author[0].toUpperCase()}</div>
           <div>
             <div class="review-name">${r.author}</div>
-            <div class="review-date">${r.date}</div>
+            <div class="review-date">${r.date_label || ''}</div>
           </div>
         </div>
       </div>
@@ -599,7 +610,7 @@
           <div class="product-sub">${catLabel(p.cat)}</div>
           <div class="product-footer">
             <div class="product-price">
-              ${p.oldPrice ? `<span class="price-old">Q${p.oldPrice}</span>` : ''}Q${p.price}
+              ${p.old_price ? `<span class="price-old">Q${p.old_price}</span>` : ''}Q${p.price}
             </div>
             <button class="btn-add" ${outOfStock ? 'disabled' : ''} onclick="event.stopPropagation();${outOfStock ? '' : `openProductModal(${p.id})`}">${outOfStock ? 'Agotado' : '+ Agregar'}</button>
           </div>
@@ -624,7 +635,7 @@
     el.style.background = currentProduct.bg;
     el.innerHTML = currentProduct.img ? `<img src="${currentProduct.img}" alt="${currentProduct.name}"/>` : currentProduct.emoji;
     document.getElementById('pmName').textContent = currentProduct.name;
-    const op = currentProduct.oldPrice ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.9rem;margin-right:6px">Q${currentProduct.oldPrice}</span>` : '';
+    const op = currentProduct.old_price ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.9rem;margin-right:6px">Q${currentProduct.old_price}</span>` : '';
     document.getElementById('pmPrice').innerHTML = op + `Q${currentProduct.price}`;
     document.getElementById('pmLink').href = `producto.html?id=${id}`;
     document.getElementById('pmQty').textContent = 1;
@@ -713,96 +724,102 @@
       <div class="order-summary-total"><span>Total</span><span>Q${total}</span></div>`;
   }
 
-  function processPayment() {
+  async function processPayment() {
     const btn = document.getElementById('payNowBtn');
     btn.disabled = true; btn.textContent = '⏳ Preparando pedido...';
 
-    setTimeout(() => {
-      const subtotal = cart.reduce((a,b)=>a+b.price*b.qty,0);
-      const total    = subtotal + DELIVERY_COST;
-      const orderId  = 'SK-' + Date.now().toString().slice(-6);
+    const subtotal = cart.reduce((a,b)=>a+b.price*b.qty,0);
+    const total    = subtotal + DELIVERY_COST;
+    const orderId  = 'SK-' + Date.now().toString().slice(-6);
 
-      const name    = document.getElementById('shipName').value;
-      const phone   = document.getElementById('shipPhone').value;
-      const email   = document.getElementById('shipEmail').value;
-      const dept    = document.getElementById('shipDept').value;
-      const mun     = document.getElementById('shipMun').value;
-      const addr    = document.getElementById('shipAddr').value;
-      const ref     = document.getElementById('shipRef').value;
+    const name    = document.getElementById('shipName').value;
+    const phone   = document.getElementById('shipPhone').value;
+    const email   = document.getElementById('shipEmail').value;
+    const dept    = document.getElementById('shipDept').value;
+    const mun     = document.getElementById('shipMun').value;
+    const addr    = document.getElementById('shipAddr').value;
+    const ref     = document.getElementById('shipRef').value;
 
-      // ── Descontar stock automáticamente (uno por uno, por cada artículo del pedido) ──
-      cart.forEach(item => {
-        const prod = products.find(p => p.id === item.id);
-        if (prod) prod.stock = Math.max(0, (prod.stock || 0) - item.qty);
-      });
-      persistProducts();
-      renderProducts(currentFilter);
+    // ── Guardar el pedido en Supabase (visible en el panel admin al instante) ──
+    const { error: orderError } = await sb.from('orders').insert({
+      order_code: orderId,
+      customer_name: name, email, phone,
+      address: `${dept}, ${mun} - ${addr}`,
+      items: cart.map(i => ({ id:i.id, name:i.name, size:i.size, qty:i.qty, price:i.price })),
+      subtotal, delivery: DELIVERY_COST, total, status: 'Pendiente'
+    });
 
-      // Guardar pedido en localStorage para el admin (estado: Pendiente de confirmar por WhatsApp)
-      const orders = JSON.parse(localStorage.getItem('sk_orders') || '[]');
-      orders.unshift({
-        id: orderId, date: new Date().toLocaleDateString('es-GT'),
-        name, email, phone,
-        address: `${dept}, ${mun} - ${addr}`,
-        items: cart.map(i => ({ name:i.name, size:i.size, qty:i.qty, price:i.price })),
-        subtotal, delivery: DELIVERY_COST, total, status: 'Pendiente'
-      });
-      localStorage.setItem('sk_orders', JSON.stringify(orders));
-
-      // ── Construir mensaje de WhatsApp ──
-      let msg = `🛍️ *Nuevo pedido Sage Kids* — #${orderId}\n\n`;
-      msg += `👤 *Cliente:* ${name}\n`;
-      msg += `📞 *Teléfono:* ${phone}\n`;
-      msg += `📧 *Correo:* ${email}\n\n`;
-      msg += `📍 *Dirección de envío:*\n${addr}, ${mun}, ${dept}\n`;
-      if (ref) msg += `📝 Referencia: ${ref}\n`;
-      msg += `🚚 *Entrega:* Envío estándar (2-5 días)\n\n`;
-      msg += `🧾 *Productos:*\n`;
-      cart.forEach(item => {
-        msg += `• ${item.name} (Talla ${item.size}) ×${item.qty} — Q${item.price * item.qty}\n`;
-      });
-      msg += `\n💰 Subtotal: Q${subtotal}\n`;
-      msg += `🚚 Envío: Q${DELIVERY_COST}\n`;
-      msg += `*TOTAL: Q${total}*\n\n`;
-      msg += `Quedo a la espera de confirmación para coordinar el pago y envío. ¡Gracias! 🌿☀`;
-
-      const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
-
-      // Mostrar pantalla de éxito
-      document.getElementById('checkoutForm').style.display = 'none';
-      document.getElementById('successScreen').style.display = 'block';
-      document.getElementById('successOrderBox').innerHTML = `
-        <strong>Pedido #${orderId}</strong><br/>
-        📍 ${dept}, ${mun}<br/>
-        📧 ${email}<br/>
-        💰 Total: Q${total}`;
-
+    if (orderError) {
+      showToast('⚠️ No se pudo registrar el pedido, intenta de nuevo');
       btn.disabled = false; btn.textContent = '💬 Confirmar y enviar por WhatsApp';
+      return;
+    }
 
-      // El pedido ya quedó registrado y el stock descontado: vaciamos el carrito
-      // para evitar que se reenvíe el mismo pedido dos veces por accidente.
-      cart = [];
-      saveCart();
-      updateCartCount();
+    // ── Descontar stock automáticamente y de forma atómica (RPC), uno por artículo ──
+    // Esto queda guardado en la base de datos real: se refleja para TODOS los
+    // clientes y en el panel admin, no solo en este navegador.
+    for (const item of cart) {
+      await sb.rpc('decrement_stock', { p_product_id: item.id, p_qty: item.qty });
+    }
+    await loadProducts();
+    renderProducts(currentFilter);
 
-      // Abrir WhatsApp en una pestaña nueva
-      window.open(waUrl, '_blank');
-    }, 700);
+    // ── Construir mensaje de WhatsApp ──
+    let msg = `🛍️ *Nuevo pedido Sage Kids* — #${orderId}\n\n`;
+    msg += `👤 *Cliente:* ${name}\n`;
+    msg += `📞 *Teléfono:* ${phone}\n`;
+    msg += `📧 *Correo:* ${email}\n\n`;
+    msg += `📍 *Dirección de envío:*\n${addr}, ${mun}, ${dept}\n`;
+    if (ref) msg += `📝 Referencia: ${ref}\n`;
+    msg += `🚚 *Entrega:* Envío estándar (2-5 días)\n\n`;
+    msg += `🧾 *Productos:*\n`;
+    cart.forEach(item => {
+      msg += `• ${item.name} (Talla ${item.size}) ×${item.qty} — Q${item.price * item.qty}\n`;
+    });
+    msg += `\n💰 Subtotal: Q${subtotal}\n`;
+    msg += `🚚 Envío: Q${DELIVERY_COST}\n`;
+    msg += `*TOTAL: Q${total}*\n\n`;
+    msg += `Quedo a la espera de confirmación para coordinar el pago y envío. ¡Gracias! 🌿☀`;
+
+    const waUrl = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+
+    // Mostrar pantalla de éxito
+    document.getElementById('checkoutForm').style.display = 'none';
+    document.getElementById('successScreen').style.display = 'block';
+    document.getElementById('successOrderBox').innerHTML = `
+      <strong>Pedido #${orderId}</strong><br/>
+      📍 ${dept}, ${mun}<br/>
+      📧 ${email}<br/>
+      💰 Total: Q${total}`;
+
+    btn.disabled = false; btn.textContent = '💬 Confirmar y enviar por WhatsApp';
+
+    // El pedido ya quedó registrado y el stock descontado: vaciamos el carrito
+    // para evitar que se reenvíe el mismo pedido dos veces por accidente.
+    cart = [];
+    saveCart();
+    updateCartCount();
+
+    // Abrir WhatsApp en una pestaña nueva
+    window.open(waUrl, '_blank');
   }
 
   function clearCart() { cart = []; saveCart(); updateCartCount(); document.getElementById('sidebar').classList.remove('open'); }
   function showToast(msg) { const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
   function updateMunicipios() {} // extensible
 
-  renderProducts('todos');
-  renderReviews();
-  updateCartCount();
+  (async function init() {
+    await loadProducts();
+    renderProducts('todos');
+    renderReviews();
+    updateCartCount();
 
-  // Si venimos de producto.html con la intención de pagar (#checkout), abrir el checkout directo
-  if (location.hash === '#checkout') {
-    if (cart.length > 0) openModal();
-    history.replaceState(null, '', location.pathname + location.search);
-  }
+    // Si venimos de producto.html con la intención de pagar (#checkout), abrir el checkout directo
+    if (location.hash === '#checkout') {
+      if (cart.length > 0) openModal();
+      history.replaceState(null, '', location.pathname + location.search);
+    }
+  })();
 </script>
 </body>
 </html>
