@@ -339,6 +339,7 @@
   <div class="login-box">
     <div class="login-logo">Sage<span>ADMIN</span></div>
     <p class="login-sub">Panel de administración · Acceso restringido</p>
+    <input type="email" id="loginEmail" placeholder="Correo" style="width:100%;padding:12px 16px;border:2px solid var(--green-light);border-radius:12px;font-family:'Nunito',sans-serif;font-size:1rem;outline:none;margin-bottom:12px" onkeydown="if(event.key==='Enter') document.getElementById('loginPass').focus()"/>
     <input type="password" id="loginPass" placeholder="Contraseña" onkeydown="if(event.key==='Enter') doLogin()"/>
     <div class="login-err" id="loginErr"></div>
     <button class="btn-login" id="loginBtn" onclick="doLogin()">Ingresar</button>
@@ -551,18 +552,15 @@
       <h2 class="panel-title">Usuarios admin</h2>
       <div class="users-list" id="usersList"></div>
       <div class="add-user-form">
-        <h3>+ Agregar usuario</h3>
-        <div class="add-user-row">
-          <div class="fld"><label>Nombre</label><input type="text" id="newUserName" placeholder="María López"/></div>
-          <div class="fld"><label>Contraseña</label><input type="password" id="newUserPass" placeholder="Mínimo 8 caracteres"/></div>
-          <div class="fld"><label>Rol</label>
-            <select id="newUserRole">
-              <option value="editor">Editor (no puede borrar)</option>
-              <option value="admin">Admin completo</option>
-            </select>
-          </div>
-        </div>
-        <button class="btn-save" style="margin-top:16px" onclick="addUser()">Agregar usuario</button>
+        <h3>🔒 ¿Cómo agrego a alguien nuevo?</h3>
+        <p style="color:var(--muted);font-size:.88rem;line-height:1.7">
+          Por seguridad, las cuentas nuevas ya no se crean desde aquí — se crean directamente en Supabase, donde
+          Anthropic&nbsp;/&nbsp;Supabase verifica la contraseña de verdad (no en este navegador).<br/><br/>
+          <strong>Pasos:</strong> 1) Ve a tu proyecto en Supabase → <em>Authentication → Users → Add user</em> con el correo y contraseña de la nueva persona.
+          2) Copia el UUID que le asigna. 3) En el <em>SQL Editor</em> corre:<br/>
+          <code style="background:var(--green-light);padding:2px 6px;border-radius:6px;display:inline-block;margin-top:6px">insert into profiles (id, name, role) values ('SU-UUID', 'Su Nombre', 'editor');</code><br/><br/>
+          Usa <code>'admin'</code> en vez de <code>'editor'</code> si necesita permisos completos (incluido borrar productos).
+        </p>
       </div>
     </div>
 
@@ -585,23 +583,21 @@
 <!-- ═══ TOAST ═══ -->
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ══════════════════════════════════════════════════════
-//  CONFIGURACIÓN — cambia las contraseñas aquí
+//  CONFIGURACIÓN — conexión a Supabase
 // ══════════════════════════════════════════════════════
-const CONFIG = {
-  // Contraseña hasheada con SHA-256. Para generar la tuya:
-  // 1. Abre la consola del navegador (F12)
-  // 2. Pega: crypto.subtle.digest('SHA-256', new TextEncoder().encode('TuContraseña')).then(b => console.log([...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('')))
-  // 3. Copia el resultado y reemplaza el valor de defaultPassHash abajo
-  defaultPassHash: 'fb9be5045fd514973e0fc1a3c7ed48943e3964c82638cf541e4ef83eae4a498b',
-  appName: 'Sage Kids Admin'
-};
+const SUPABASE_URL = 'https://hwnqdfrzjewjkghcsbtv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh3bnFkZnJ6amV3amtnaGNzYnR2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAyOTM3MTQsImV4cCI6MjEwNTg2OTcxNH0.d_Gr_WZcQBTBkM5pOyMTEFhyyUEGh5WX-4bxl9Ge6Y8';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 // ══ STATE ══
-let users = JSON.parse(localStorage.getItem('sk_users') || '[]');
-let products  = JSON.parse(localStorage.getItem('sk_products') || '[]');
-let session   = JSON.parse(sessionStorage.getItem('sk_session') || 'null');
+// Ya no hay 'users' locales: la autenticación real la hace Supabase Auth.
+let products  = [];
+let orders    = [];
+let reviews   = [];
+let session   = null; // { id, name, role } — se llena tras login exitoso
 let editingId = null;
 let selectedColor = '#fde8ef';
 let selectedSizes = [];
@@ -617,42 +613,9 @@ const SIZES_BY_CAT = {
   calzado:   ['19','20','21','22','23','24','25','26','27','28']
 };
 
-// ══ SEED DATA si no hay productos (debe coincidir con el catálogo de la tienda) ══
-if (products.length === 0) {
-  products = [
-    { id:1,  name:"Vestido Floral Primavera", cat:"niña",      price:189, oldPrice:null, emoji:"👗", bg:"#fde8ef", badge:"new",  stock:30, sizes:['4T','5','6','7'],       desc:"Ligero y colorido para el verano. Tela 100% algodón orgánico, perfecta para días cálidos. Fácil de lavar y mantiene su color lavado tras lavado.", img:null },
-    { id:2,  name:"Camiseta Cohete Espacial", cat:"niño",      price:89,  oldPrice:null, emoji:"🚀", bg:"#daeeff", badge:null,   stock:45, sizes:['4T','5','6'],           desc:"Perfecta para los pequeños exploradores. Estampado de cohete espacial con colores brillantes que no destiñen.", img:null },
-    { id:3,  name:"Conjunto Bebé Osito",      cat:"bebé",      price:245, oldPrice:299,  emoji:"🐻", bg:"#fef3e2", badge:"sale", stock:15, sizes:['6-12m','12-18m'],       desc:"Suave algodón orgánico en dos piezas. Incluye bodybody y pantalón a juego con orejas de osito en la capucha.", img:null },
-    { id:4,  name:"Pantalón Jogger Verde",    cat:"niño",      price:135, oldPrice:null, emoji:"🌿", bg:"#e0f5e8", badge:null,   stock:28, sizes:['5','6','7','8'],        desc:"Cómodo para el día a día. Cintura elástica ajustable y bolsillos laterales. Tela suave anti-pilling.", img:null },
-    { id:5,  name:"Abrigo Estrellitas",       cat:"outerwear", price:320, oldPrice:399,  emoji:"⭐", bg:"#fff0d6", badge:"sale", stock:8,  sizes:['S','M','L'],            desc:"Calidez con estilo. Forro interior polar, cierre frontal con botones forrados y bordado de estrellas.", img:null },
-    { id:6,  name:"Vestido Lunares Niña",     cat:"niña",      price:165, oldPrice:null, emoji:"🎀", bg:"#fde8ef", badge:"new",  stock:20, sizes:['4T','5','6'],           desc:"Lunares clásicos en rosa y blanco. Incluye lazo removible en la cintura y bolsillos decorativos.", img:null },
-    { id:7,  name:"Tenis Saltarines",         cat:"calzado",   price:220, oldPrice:null, emoji:"👟", bg:"#e8ecff", badge:null,   stock:18, sizes:['21','22','23','24'],    desc:"Suela antideslizante y plantilla acolchada. Cierre de velcro para que los niños los pongan solos.", img:null },
-    { id:8,  name:"Pijama Dinos Bebé",        cat:"bebé",      price:175, oldPrice:210,  emoji:"🦕", bg:"#e6f5f0", badge:"sale", stock:12, sizes:['0-3m','3-6m'],          desc:"Suave franela con dinosaurios. Dos piezas: camisa y pantalón de amarre en la cintura.", img:null },
-    { id:9,  name:"Camisa Cuadros Niño",      cat:"niño",      price:115, oldPrice:null, emoji:"👔", bg:"#daeeff", badge:null,   stock:22, sizes:['5','6','7'],            desc:"Cuadros clásicos en azul y verde. Botones de nácar y dobladillo liso para usar por dentro o fuera.", img:null },
-    { id:10, name:"Falda Tul Rosa",           cat:"niña",      price:145, oldPrice:null, emoji:"🌸", bg:"#fde8ef", badge:"new",  stock:16, sizes:['4T','5','6'],           desc:"Capas de tul suave color rosa pastel. Forrada en algodón por dentro para máxima comodidad.", img:null },
-    { id:11, name:"Chaqueta Lluvia",          cat:"outerwear", price:280, oldPrice:null, emoji:"🌧️", bg:"#d6eeff", badge:null,  stock:14, sizes:['XS','S','M','L'],       desc:"Impermeable liviana con capucha integrada. Ideal para el invierno guatemalteco.", img:null },
-    { id:12, name:"Sandalias Mariposa",       cat:"calzado",   price:195, oldPrice:240,  emoji:"🦋", bg:"#fff0d6", badge:"sale", stock:10, sizes:['20','21','22','23'],    desc:"Sandalias con decoración de mariposa en relieve. Correa ajustable y suela de goma antideslizante.", img:null },
-  ];
-  saveProducts();
-}
-
-if (users.length === 0) {
-  users = [{ id:1, name:'Admin Principal', role:'admin', passHash: CONFIG.defaultPassHash }];
-  saveUsers();
-}
-
-// ══ HASH ══
-async function sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return [...new Uint8Array(buf)].map(x => x.toString(16).padStart(2,'0')).join('');
-}
-
-// ══ AUTH ══
-// Nota de seguridad: este login corre 100% en el navegador (no hay servidor real
-// verificando la contraseña), así que es disuasorio, no infranqueable — alguien con
-// herramientas de desarrollador podría saltárselo. Este límite de intentos ayuda
-// contra adivinar la contraseña a fuerza bruta manual, pero para una protección
-// real se necesita un backend con autenticación (ver nota al usuario).
+// ══ AUTH (Supabase Auth real — la contraseña se verifica en el servidor) ══
+// El límite de intentos de aquí es solo una capa extra en el navegador para
+// no spamear el servidor; la seguridad real ya la da Supabase.
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 30000;
 
@@ -679,19 +642,33 @@ function updateLoginLockUI() {
   }
 }
 
+// Busca (o crea) el perfil de rol del usuario que acaba de autenticarse
+async function loadMyProfile(userId) {
+  const { data, error } = await sb.from('profiles').select('*').eq('id', userId).maybeSingle();
+  if (error || !data) return null;
+  return data;
+}
+
 async function doLogin() {
   const state = getLoginState();
   if (state.lockedUntil > Date.now()) { updateLoginLockUI(); return; }
 
-  const pass = document.getElementById('loginPass').value;
-  if (!pass) return;
-  const hash = await sha256(pass);
-  const user = users.find(u => u.passHash === hash);
-  if (user) {
+  const email = document.getElementById('loginEmail').value.trim();
+  const pass  = document.getElementById('loginPass').value;
+  if (!email || !pass) return;
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password: pass });
+
+  if (!error && data.user) {
+    const profile = await loadMyProfile(data.user.id);
+    if (!profile) {
+      document.getElementById('loginErr').textContent = '⚠️ Tu cuenta no tiene un perfil de staff asignado (avisa al admin).';
+      await sb.auth.signOut();
+      return;
+    }
     setLoginState({ attempts: 0, lockedUntil: 0 });
-    sessionStorage.setItem('sk_session', JSON.stringify({ id: user.id, name: user.name, role: user.role }));
-    session = { id: user.id, name: user.name, role: user.role };
-    showAdmin();
+    session = { id: data.user.id, name: profile.name, role: profile.role };
+    await showAdmin();
   } else {
     state.attempts = (state.attempts || 0) + 1;
     if (state.attempts >= MAX_ATTEMPTS) {
@@ -701,27 +678,27 @@ async function doLogin() {
       updateLoginLockUI();
     } else {
       setLoginState(state);
-      document.getElementById('loginErr').textContent = `❌ Contraseña incorrecta (intento ${state.attempts}/${MAX_ATTEMPTS})`;
+      document.getElementById('loginErr').textContent = `❌ Correo o contraseña incorrectos (intento ${state.attempts}/${MAX_ATTEMPTS})`;
       setTimeout(() => document.getElementById('loginErr').textContent = '', 3000);
     }
     document.getElementById('loginPass').value = '';
   }
 }
 
-function doLogout() {
-  sessionStorage.removeItem('sk_session');
+async function doLogout() {
+  await sb.auth.signOut();
   session = null;
   document.getElementById('adminWrap').classList.remove('visible');
   document.getElementById('loginScreen').style.display = 'flex';
   document.getElementById('loginPass').value = '';
 }
 
-function showAdmin() {
+async function showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminWrap').classList.add('visible');
-  document.getElementById('currentUserLabel').textContent = '👤 ' + session.name;
+  document.getElementById('currentUserLabel').textContent = '👤 ' + session.name + (session.role === 'admin' ? ' · 🔑 Admin' : ' · ✏️ Editor');
   initColorPicker();
-  loadOrders();
+  await Promise.all([loadProducts(), loadOrders(), loadReviews(), loadStaffList()]);
   renderDashboard();
   renderTable();
   renderUsers();
@@ -750,7 +727,7 @@ function showTab(name, btn) {
 // ══ DASHBOARD ══
 function renderDashboard() {
   // Leer pedidos frescos del localStorage cada vez
-  const latestOrders = JSON.parse(localStorage.getItem('sk_orders') || '[]');
+  const latestOrders = orders; // ya cargado desde Supabase en showAdmin()
 
   const total     = products.length;
   const lowStock  = products.filter(p => (p.stock || 0) < 10).length;
@@ -779,8 +756,8 @@ function renderDashboard() {
           const cls = 'status-' + (o.status || 'pendiente').toLowerCase();
           return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--green-light);gap:12px;flex-wrap:wrap">
             <div>
-              <div style="font-weight:800;font-size:.9rem">#${o.id} — ${o.name}</div>
-              <div style="font-size:.75rem;color:var(--muted)">${o.date} · ${(o.items||[]).length} artículo(s)</div>
+              <div style="font-weight:800;font-size:.9rem">#${o.order_code} — ${o.customer_name}</div>
+              <div style="font-size:.75rem;color:var(--muted)">${new Date(o.created_at).toLocaleDateString('es-GT')} · ${(o.items||[]).length} artículo(s)</div>
             </div>
             <div style="display:flex;align-items:center;gap:10px">
               <strong style="color:var(--green)">Q${o.total}</strong>
@@ -824,7 +801,7 @@ function renderTable(filter = '') {
         <td><strong>${p.name}</strong><br/><span style="font-size:.75rem;color:var(--muted)">${(p.sizes||[]).join(', ')}</span></td>
         <td>${catLabel(p.cat)}</td>
         <td>
-          ${p.oldPrice ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.78rem">Q${p.oldPrice}</span><br/>` : ''}
+          ${p.old_price ? `<span style="text-decoration:line-through;color:var(--muted);font-size:.78rem">Q${p.old_price}</span><br/>` : ''}
           <strong>Q${p.price}</strong>
         </td>
         <td>
@@ -926,11 +903,11 @@ function editProduct(id) {
   document.getElementById('formTitle').textContent = 'Editar producto';
   document.getElementById('fName').value     = p.name;
   document.getElementById('fPrice').value    = p.price;
-  document.getElementById('fOldPrice').value = p.oldPrice || '';
+  document.getElementById('fOldPrice').value = p.old_price || '';
   document.getElementById('fCat').value      = p.cat;
   document.getElementById('fBadge').value    = p.badge || '';
   document.getElementById('fStock').value    = p.stock || 0;
-  document.getElementById('fDesc').value     = p.desc || '';
+  document.getElementById('fDesc').value     = p.description || '';
   updateSizes();
   if (p.img) {
     document.getElementById('imgPreview').src = p.img;
@@ -944,7 +921,7 @@ function editProduct(id) {
   showTab('add', document.querySelector('.tab-btn:nth-child(3)'));
 }
 
-function saveProduct() {
+async function saveProduct() {
   const name  = document.getElementById('fName').value.trim();
   const cat   = document.getElementById('fCat').value;
   const price = parseFloat(document.getElementById('fPrice').value);
@@ -952,30 +929,30 @@ function saveProduct() {
   if (!name || !cat || isNaN(price)) { showToast('⚠️ Nombre, categoría y precio son obligatorios', true); return; }
   const imgFinal = imgBase64 || url || null;
 
-  const prod = {
-    id:       editingId || Date.now(),
+  const payload = {
     name,
     cat,
     price,
-    oldPrice: parseFloat(document.getElementById('fOldPrice').value) || null,
-    badge:    document.getElementById('fBadge').value || null,
-    stock:    parseInt(document.getElementById('fStock').value) || 0,
-    desc:     document.getElementById('fDesc').value.trim(),
-    sizes:    [...selectedSizes],
-    bg:       selectedColor,
-    emoji:    catEmoji(cat),
-    img:      imgFinal,
+    old_price:   parseFloat(document.getElementById('fOldPrice').value) || null,
+    badge:       document.getElementById('fBadge').value || null,
+    stock:       parseInt(document.getElementById('fStock').value) || 0,
+    description: document.getElementById('fDesc').value.trim(),
+    sizes:       [...selectedSizes],
+    bg:          selectedColor,
+    emoji:       catEmoji(cat),
+    img:         imgFinal,
   };
 
+  let error;
   if (editingId) {
-    const idx = products.findIndex(x => x.id === editingId);
-    products[idx] = prod;
-    showToast('✅ Producto actualizado');
+    ({ error } = await sb.from('products').update(payload).eq('id', editingId));
   } else {
-    products.push(prod);
-    showToast('✅ Producto agregado');
+    ({ error } = await sb.from('products').insert(payload));
   }
-  saveProducts();
+  if (error) { showToast('⚠️ Error guardando: ' + error.message, true); return; }
+
+  showToast(editingId ? '✅ Producto actualizado' : '✅ Producto agregado');
+  await loadProducts();
   renderDashboard();
   renderTable();
   resetForm();
@@ -993,65 +970,47 @@ function closeConfirm() {
   pendingDeleteId = null;
 }
 
-function deleteProduct(id) {
-  products = products.filter(x => x.id !== id);
-  saveProducts();
+async function deleteProduct(id) {
+  const { error } = await sb.from('products').delete().eq('id', id);
+  if (error) { showToast('⚠️ No se pudo eliminar (¿tienes rol admin?)', true); return; }
+  await loadProducts();
   renderDashboard();
   renderTable();
   showToast('🗑️ Producto eliminado');
 }
 
-// ══ USERS ══
+// ══ USERS (solo lectura — las cuentas se crean/borran desde Supabase) ══
+let staffList = [];
+async function loadStaffList() {
+  // Solo un admin puede ver la lista completa de staff (política RLS de 'profiles');
+  // un editor solo verá su propia fila, lo cual está bien.
+  const { data, error } = await sb.from('profiles').select('*').order('created_at');
+  if (!error) staffList = data || [];
+}
+
 function renderUsers() {
-  document.getElementById('usersList').innerHTML = users.map(u => `
+  document.getElementById('usersList').innerHTML = staffList.map(u => `
     <div class="user-card">
       <div style="display:flex;align-items:center">
         <div class="user-avatar">${u.name[0].toUpperCase()}</div>
         <div class="user-info">
-          <div class="user-name">${u.name}</div>
+          <div class="user-name">${u.name}${u.id === session.id ? ' (tú)' : ''}</div>
           <div class="user-role">${u.role === 'admin' ? '🔑 Admin completo' : '✏️ Editor'}</div>
         </div>
       </div>
-      ${users.length > 1 && session.role === 'admin'
-        ? `<button class="btn-del-user" onclick="deleteUser(${u.id})">Eliminar</button>`
-        : '<span style="font-size:.75rem;color:var(--muted)">Usuario principal</span>'}
     </div>
   `).join('');
 }
 
-async function addUser() {
-  const name = document.getElementById('newUserName').value.trim();
-  const pass = document.getElementById('newUserPass').value;
-  const role = document.getElementById('newUserRole').value;
-  if (!name || pass.length < 8) { showToast('⚠️ Nombre y contraseña (mín 8 chars) requeridos', true); return; }
-  // Un editor no puede crear usuarios con rol admin (evita escalar sus propios privilegios)
-  if (role === 'admin' && session.role !== 'admin') {
-    showToast('⚠️ Solo un Admin completo puede crear otro Admin', true);
-    return;
-  }
-  const hash = await sha256(pass);
-  users.push({ id: Date.now(), name, role, passHash: hash });
-  saveUsers();
-  renderUsers();
-  document.getElementById('newUserName').value = '';
-  document.getElementById('newUserPass').value = '';
-  showToast('✅ Usuario agregado');
+// ══ CARGA DESDE SUPABASE ══
+// Supabase es ahora la única fuente de verdad: la tienda (sage-kids.html / producto.html)
+// lee de las mismas tablas, así que todo cambio aquí (incluido el descuento de stock
+// automático al confirmar un pedido) se refleja para ambos lados y para todos los dispositivos.
+async function loadProducts() {
+  const { data, error } = await sb.from('products').select('*').order('id');
+  if (error) { showToast('⚠️ Error cargando productos: ' + error.message, true); return; }
+  products = data || [];
 }
-
-function deleteUser(id) {
-  if (id === session.id) { showToast('⚠️ No puedes eliminarte a ti mismo', true); return; }
-  users = users.filter(u => u.id !== id);
-  saveUsers();
-  renderUsers();
-  showToast('🗑️ Usuario eliminado');
-}
-
-// ══ STORAGE ══
-// 'sk_products' es la única fuente de verdad: la tienda (sage-kids.html / producto.html)
-// lee de esta misma clave, así que todo cambio aquí (incluido el descuento de stock
-// automático al confirmar un pedido) se refleja para ambos lados.
-function saveProducts() { localStorage.setItem('sk_products', JSON.stringify(products)); }
-function saveUsers()    { localStorage.setItem('sk_users',    JSON.stringify(users));    }
 
 // ══ HELPERS ══
 function catLabel(c) {
@@ -1070,9 +1029,11 @@ function showToast(msg, isError = false) {
 }
 
   // ══ REVIEWS ══
-  let reviews = JSON.parse(localStorage.getItem('sk_reviews') || '[]');
   let editingReviewId = null;
-  function saveReviewsStore() { localStorage.setItem('sk_reviews', JSON.stringify(reviews)); }
+  async function loadReviews() {
+    const { data, error } = await sb.from('reviews').select('*').order('created_at', { ascending: false });
+    if (!error) reviews = data || [];
+  }
   function showReviewForm(id) {
     id = (id === undefined) ? null : id;
     editingReviewId = id;
@@ -1081,7 +1042,7 @@ function showToast(msg, isError = false) {
       document.getElementById('rAuthor').value = r.author;
       document.getElementById('rStars').value  = r.stars;
       document.getElementById('rText').value   = r.text;
-      document.getElementById('rDate').value   = r.date;
+      document.getElementById('rDate').value   = r.date_label || '';
       document.getElementById('reviewFormTitle').textContent = 'Editar reseña';
     } else {
       document.getElementById('rAuthor').value = '';
@@ -1093,23 +1054,27 @@ function showToast(msg, isError = false) {
     document.getElementById('reviewFormCard').style.display = 'block';
   }
   function hideReviewForm() { document.getElementById('reviewFormCard').style.display='none'; editingReviewId=null; }
-  function saveReview() {
+  async function saveReview() {
     const author = document.getElementById('rAuthor').value.trim();
     const text   = document.getElementById('rText').value.trim();
     const stars  = parseInt(document.getElementById('rStars').value);
-    const date   = document.getElementById('rDate').value.trim() || new Date().toLocaleDateString('es-GT',{month:'long',year:'numeric'});
+    const date_label = document.getElementById('rDate').value.trim() || new Date().toLocaleDateString('es-GT',{month:'long',year:'numeric'});
     if (!author || !text) { showToast('Por favor completa nombre y comentario', true); return; }
+    let error;
     if (editingReviewId !== null) {
-      const idx = reviews.findIndex(r => r.id === editingReviewId);
-      reviews[idx] = { ...reviews[idx], author, text, stars, date };
-      showToast('Resena actualizada');
+      ({ error } = await sb.from('reviews').update({ author, text, stars, date_label }).eq('id', editingReviewId));
     } else {
-      reviews.push({ id: Date.now(), author, text, stars, date });
-      showToast('Resena agregada');
+      ({ error } = await sb.from('reviews').insert({ author, text, stars, date_label }));
     }
-    saveReviewsStore(); hideReviewForm(); renderReviews();
+    if (error) { showToast('⚠️ Error: ' + error.message, true); return; }
+    showToast(editingReviewId !== null ? 'Reseña actualizada' : 'Reseña agregada');
+    await loadReviews(); hideReviewForm(); renderReviews();
   }
-  function deleteReview(id) { reviews=reviews.filter(r=>r.id!==id); saveReviewsStore(); renderReviews(); showToast('Resena eliminada'); }
+  async function deleteReview(id) {
+    const { error } = await sb.from('reviews').delete().eq('id', id);
+    if (error) { showToast('⚠️ Error al borrar', true); return; }
+    await loadReviews(); renderReviews(); showToast('Reseña eliminada');
+  }
   function renderReviews() {
     const el = document.getElementById('reviewsList');
     if (!el) return;
@@ -1119,7 +1084,7 @@ function showToast(msg, isError = false) {
         <div style="flex:1">
           <div class="r-stars">${'&#9733;'.repeat(r.stars)}${'&#9734;'.repeat(5-r.stars)}</div>
           <div class="r-text">"${r.text}"</div>
-          <div class="r-meta">- ${r.author} . ${r.date}</div>
+          <div class="r-meta">- ${r.author} . ${r.date_label || ''}</div>
         </div>
         <div class="review-admin-actions">
           <button class="btn-edit" onclick="showReviewForm(${r.id})">Editar</button>
@@ -1129,26 +1094,30 @@ function showToast(msg, isError = false) {
   }
 
   // ══ ORDERS ══
-  let orders = [];
   let ordersFilter = '';
-  function loadOrders() { orders = JSON.parse(localStorage.getItem('sk_orders') || '[]'); }
+  async function loadOrders() {
+    const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false });
+    if (!error) orders = data || [];
+  }
   function filterOrders(val) { ordersFilter = val.toLowerCase(); renderOrders(); }
-  function cycleStatus(id) {
+  async function cycleStatus(id) {
     const statuses = ['Pendiente','Enviado','Entregado','Cancelado'];
     const idx = orders.findIndex(o => o.id === id);
     if (idx === -1) return;
     const cur = statuses.indexOf(orders[idx].status);
-    orders[idx].status = statuses[(cur + 1) % statuses.length];
-    localStorage.setItem('sk_orders', JSON.stringify(orders));
+    const next = statuses[(cur + 1) % statuses.length];
+    const { error } = await sb.from('orders').update({ status: next }).eq('id', id);
+    if (error) { showToast('⚠️ No se pudo actualizar el estado', true); return; }
+    orders[idx].status = next;
     renderOrders();
-    showToast('Estado: ' + orders[idx].status);
+    showToast('Estado: ' + next);
   }
   function renderOrders() {
     const el = document.getElementById('ordersContainer');
     if (!el) return;
     const list = ordersFilter ? orders.filter(o =>
-      o.id.toLowerCase().includes(ordersFilter) ||
-      o.name.toLowerCase().includes(ordersFilter) ||
+      o.order_code.toLowerCase().includes(ordersFilter) ||
+      o.customer_name.toLowerCase().includes(ordersFilter) ||
       (o.email||'').toLowerCase().includes(ordersFilter)
     ) : orders;
     if (list.length === 0) {
@@ -1158,19 +1127,20 @@ function showToast(msg, isError = false) {
     el.innerHTML = list.map(o => {
       const cls   = 'status-' + (o.status || 'pendiente').toLowerCase();
       const items = (o.items || []).map(i => `${i.name} (${i.size}) x${i.qty}`).join(' · ');
+      const dateLabel = new Date(o.created_at).toLocaleDateString('es-GT');
       return `
         <div class="order-card">
           <div class="order-header">
             <div>
-              <span class="order-id">#${o.id}</span>
-              <span class="order-date" style="margin-left:10px">${o.date}</span>
+              <span class="order-id">#${o.order_code}</span>
+              <span class="order-date" style="margin-left:10px">${dateLabel}</span>
             </div>
-            <button class="order-status ${cls}" onclick="cycleStatus('${o.id}')">
+            <button class="order-status ${cls}" onclick="cycleStatus(${o.id})">
               ${o.status || 'Pendiente'} &#8635;
             </button>
           </div>
           <div class="order-customer">
-            <strong>${o.name}</strong> · 📧 ${o.email || ''} · 📞 ${o.phone || ''}
+            <strong>${o.customer_name}</strong> · 📧 ${o.email || ''} · 📞 ${o.phone || ''}
           </div>
           <div style="font-size:.82rem;color:var(--muted);margin-bottom:6px">📍 ${o.address || ''}</div>
           <div class="order-items">${items}</div>
@@ -1184,12 +1154,19 @@ function showToast(msg, isError = false) {
 
 
 // ══ INIT ══
-updateLoginLockUI();
-if (session) {
-  showAdmin();
-} else {
+(async function init() {
+  updateLoginLockUI();
+  const { data: { session: supaSession } } = await sb.auth.getSession();
+  if (supaSession) {
+    const profile = await loadMyProfile(supaSession.user.id);
+    if (profile) {
+      session = { id: supaSession.user.id, name: profile.name, role: profile.role };
+      await showAdmin();
+      return;
+    }
+  }
   document.getElementById('loginPass').focus();
-}
+})();
 document.getElementById('loginPass').addEventListener('keydown', e => {
   if (e.key === 'Enter') doLogin();
 });
