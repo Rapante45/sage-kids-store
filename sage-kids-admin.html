@@ -347,7 +347,17 @@
   </div>
 </div>
 
-<!-- ═══ ADMIN PANEL ═══ -->
+<!-- ═══ CREAR CONTRASEÑA (llegó desde un link de invitación de Supabase) ═══ -->
+<div class="login-screen" id="setPasswordScreen" style="display:none">
+  <div class="login-box">
+    <div class="login-logo">Sage<span>ADMIN</span></div>
+    <p class="login-sub" id="setPwSub">Bienvenido — crea tu contraseña para entrar al panel</p>
+    <input type="password" id="newPass1" placeholder="Nueva contraseña (mín. 8 caracteres)" style="width:100%;padding:12px 16px;border:2px solid var(--green-light);border-radius:12px;font-family:'Nunito',sans-serif;font-size:1rem;outline:none;margin-bottom:12px"/>
+    <input type="password" id="newPass2" placeholder="Confirma tu contraseña" style="width:100%;padding:12px 16px;border:2px solid var(--green-light);border-radius:12px;font-family:'Nunito',sans-serif;font-size:1rem;outline:none;margin-bottom:12px" onkeydown="if(event.key==='Enter') completeInvite()"/>
+    <div class="login-err" id="setPwErr"></div>
+    <button class="btn-login" onclick="completeInvite()">Crear contraseña y entrar</button>
+  </div>
+</div>
 <div class="admin-wrap" id="adminWrap">
 
   <header class="admin-header">
@@ -1153,9 +1163,67 @@ function showToast(msg, isError = false) {
   }
 
 
+// ══ INVITACIONES / RECUPERAR CONTRASEÑA ══
+// Cuando Supabase manda el correo de invitación (o de "olvidé mi contraseña"),
+// el link trae ?type=invite o ?type=recovery (a veces en el hash #...). El cliente
+// de supabase-js ya detecta esos tokens automáticamente y abre una sesión; aquí solo
+// hay que mostrarle a la persona el formulario para que elija su contraseña.
+function getAuthURLParam(name) {
+  const hash  = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  const query = new URLSearchParams(window.location.search);
+  return hash.get(name) || query.get(name);
+}
+
+function showSetPasswordScreen() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('setPasswordScreen').style.display = 'flex';
+  document.getElementById('newPass1').focus();
+}
+
+async function completeInvite() {
+  const p1 = document.getElementById('newPass1').value;
+  const p2 = document.getElementById('newPass2').value;
+  const errEl = document.getElementById('setPwErr');
+  if (p1.length < 8) { errEl.textContent = '⚠️ La contraseña debe tener al menos 8 caracteres'; return; }
+  if (p1 !== p2) { errEl.textContent = '⚠️ Las contraseñas no coinciden'; return; }
+
+  const { error } = await sb.auth.updateUser({ password: p1 });
+  if (error) { errEl.textContent = '⚠️ ' + error.message; return; }
+
+  // Limpiar el link (tokens) de la barra de direcciones por seguridad
+  history.replaceState(null, '', window.location.pathname);
+
+  const { data: { session: supaSession } } = await sb.auth.getSession();
+  document.getElementById('setPasswordScreen').style.display = 'none';
+
+  const profile = supaSession ? await loadMyProfile(supaSession.user.id) : null;
+  if (profile) {
+    session = { id: supaSession.user.id, name: profile.name, role: profile.role };
+    await showAdmin();
+  } else {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginErr').textContent = '✅ Contraseña creada. Aún no tienes un perfil de staff asignado — pide al admin que te vincule en profiles.';
+  }
+}
+
 // ══ INIT ══
 (async function init() {
   updateLoginLockUI();
+
+  const flowType = getAuthURLParam('type'); // 'invite' | 'recovery' | null
+  if (flowType === 'invite' || flowType === 'recovery') {
+    // Le damos un instante al cliente de Supabase para que procese los tokens del link
+    await new Promise(r => setTimeout(r, 400));
+    const { data: { session: supaSession } } = await sb.auth.getSession();
+    if (supaSession) {
+      document.getElementById('setPwSub').textContent = flowType === 'invite'
+        ? 'Bienvenido — crea tu contraseña para entrar al panel'
+        : 'Crea tu nueva contraseña';
+      showSetPasswordScreen();
+      return;
+    }
+  }
+
   const { data: { session: supaSession } } = await sb.auth.getSession();
   if (supaSession) {
     const profile = await loadMyProfile(supaSession.user.id);
