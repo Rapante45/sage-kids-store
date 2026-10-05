@@ -345,7 +345,7 @@
   function goCheckout() {
     // El carrito ya vive en sessionStorage bajo 'sk_cart' (misma clave que sage-kids.html),
     // así que sólo hace falta redirigir; sage-kids.html abrirá el checkout automáticamente.
-    window.location.href = 'sage-kids.html#checkout';
+    window.location.href = 'index.html#checkout';
   }
 
   function showToast(msg) { const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2800); }
