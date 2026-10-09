@@ -493,7 +493,7 @@
             <div class="img-upload-area" id="uploadArea">
               <input type="file" accept="image/*" onchange="handleFileUpload(event)" id="fImgFile"/>
               <div class="upload-icon">📁</div>
-              <p>Arrastra una foto o haz clic para seleccionar<br/><small>JPG, PNG, WEBP · Máx 2MB</small></p>
+              <p>Arrastra una foto o haz clic para seleccionar<br/><small>JPG, PNG, WEBP · hasta 30MB (se optimiza sola)</small></p>
               <img id="imgPreview" class="img-preview" alt="preview"/>
             </div>
             <div class="img-url-row">
@@ -612,12 +612,13 @@ let editingId = null;
 let selectedColor = '#fde8ef';
 let selectedSizes = [];
 let pendingDeleteId = null;
-let imgBase64 = null;
+let imgBase64 = null;   // foto antigua ya guardada como texto (productos viejos)
+let imgBlob   = null;   // foto nueva, ya comprimida, lista para subir a Storage
 
 const COLORS = ['#fde8ef','#daeeff','#fef3e2','#e0f5e8','#fff0d6','#e8ecff','#e6f5f0','#d6eeff','#f5e6ff','#e8f0fe'];
 const SIZES_BY_CAT = {
-  niña:      ['0-3m','3-6m','6-12m','12-18m','18-24m','2 años ','3 años ' ,'4 años' ,'5 años ' ,'6 años' ,'7 años' ],
-  niño:      ['0-3m','3-6m','6-12m','12-18m','18-24m','2 años ','3 años ' ,'4 años' ,'5 años ' ,'6 años' ,'7 años'],
+  niña:      ['2T','3T','4T','5','6','7','8','10','12'],
+  niño:      ['2T','3T','4T','5','6','7','8','10','12'],
   bebé:      ['0-3m','3-6m','6-12m','12-18m','18-24m'],
   outerwear: ['XS','S','M','L','XL'],
   calzado:   ['19','20','21','22','23','24','25','26','27','28']
@@ -868,19 +869,62 @@ function toggleSize(size, labelEl, checked) {
   }
 }
 
-function handleFileUpload(e) {
+// Carga una imagen desde un File (respeta la orientación de las fotos de celular)
+function loadImageFromFile(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload  = () => { URL.revokeObjectURL(url); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Formato de imagen no soportado')); };
+    img.src = url;
+  });
+}
+
+// Reduce la foto a máx. 1400px por lado y la convierte a JPG (~200-400 KB)
+async function compressImage(file, maxDim = 1400, quality = 0.82) {
+  const img = await loadImageFromFile(file);
+  const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
+  const w = Math.round(img.naturalWidth * scale);
+  const h = Math.round(img.naturalHeight * scale);
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';            // fondo blanco por si el PNG es transparente
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(img, 0, 0, w, h);
+  return new Promise((resolve, reject) =>
+    canvas.toBlob(b => b ? resolve(b) : reject(new Error('No se pudo comprimir la imagen')), 'image/jpeg', quality)
+  );
+}
+
+async function handleFileUpload(e) {
   const file = e.target.files[0];
   if (!file) return;
-  if (file.size > 2 * 1024 * 1024) { showToast('⚠️ La imagen supera 2MB', true); return; }
-  const reader = new FileReader();
-  reader.onload = ev => {
-    imgBase64 = ev.target.result;
+  if (!file.type.startsWith('image/')) { showToast('⚠️ Ese archivo no es una imagen', true); return; }
+  if (file.size > 30 * 1024 * 1024) { showToast('⚠️ La imagen supera 30MB', true); return; }
+  try {
+    showToast('⏳ Optimizando foto...');
+    imgBlob = await compressImage(file);
+    imgBase64 = null;
     const preview = document.getElementById('imgPreview');
-    preview.src = imgBase64;
+    preview.src = URL.createObjectURL(imgBlob);
     preview.style.display = 'block';
     document.getElementById('fImgUrl').value = '';
-  };
-  reader.readAsDataURL(file);
+    const mb = (file.size / 1048576).toFixed(1), kb = Math.round(imgBlob.size / 1024);
+    showToast(`✅ Foto lista: ${mb} MB → ${kb} KB`);
+  } catch (err) {
+    imgBlob = null;
+    showToast('⚠️ No se pudo leer la foto (si es HEIC, conviértela a JPG)', true);
+  }
+}
+
+// Sube la foto comprimida a Supabase Storage y devuelve su URL pública
+async function uploadProductImage(blob) {
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await sb.storage.from('product-images')
+    .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+  if (error) throw error;
+  return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;
 }
 
 function previewUrl(url) {
@@ -888,11 +932,11 @@ function previewUrl(url) {
   const preview = document.getElementById('imgPreview');
   preview.src = url;
   preview.style.display = 'block';
-  imgBase64 = null;
+  imgBase64 = null; imgBlob = null;
 }
 
 function resetForm() {
-  editingId = null; imgBase64 = null; selectedSizes = [];
+  editingId = null; imgBase64 = null; imgBlob = null; selectedSizes = [];
   document.getElementById('formTitle').textContent = 'Agregar producto';
   ['fName','fPrice','fOldPrice','fDesc','fImgUrl'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fCat').value = '';
@@ -908,6 +952,7 @@ function editProduct(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
   editingId = id;
+  imgBlob = null; imgBase64 = null;
   selectedSizes = [...(p.sizes || [])];
   selectedColor = p.bg || '#fde8ef';
   document.getElementById('formTitle').textContent = 'Editar producto';
@@ -937,7 +982,16 @@ async function saveProduct() {
   const price = parseFloat(document.getElementById('fPrice').value);
   const url   = document.getElementById('fImgUrl').value.trim();
   if (!name || !cat || isNaN(price)) { showToast('⚠️ Nombre, categoría y precio son obligatorios', true); return; }
-  const imgFinal = imgBase64 || url || null;
+  let imgFinal = imgBase64 || url || null;
+  if (imgBlob) {
+    try {
+      showToast('⏳ Subiendo foto...');
+      imgFinal = await uploadProductImage(imgBlob);
+    } catch (err) {
+      showToast('⚠️ No se pudo subir la foto: ' + err.message, true);
+      return;
+    }
+  }
 
   const payload = {
     name,
