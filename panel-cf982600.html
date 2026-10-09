@@ -966,6 +966,15 @@ async function handleFileUpload(e) {
   else showToast('⚠️ No se pudo leer ninguna foto (si es HEIC, conviértela a JPG)', true);
 }
 
+// Sube la foto comprimida a Supabase Storage y devuelve su URL pública
+async function uploadProductImage(blob) {
+  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+  const { error } = await sb.storage.from('product-images')
+    .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
+  if (error) throw error;
+  return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;
+}
+
 function addPhotoUrl() {
   const input = document.getElementById('fImgUrl');
   const url = input.value.trim();
