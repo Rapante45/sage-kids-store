@@ -117,7 +117,7 @@
 
 <header>
   <div class="header-inner">
-    <a class="logo" href="sage-kids.html">
+    <a class="logo" href="index.html">
       <div class="logo-box">
         <span class="logo-sage">Sage</span>
         <span class="logo-kids">kids</span>
@@ -132,7 +132,7 @@
 </header>
 
 <div class="breadcrumb">
-  <a href="sage-kids.html">Inicio</a> › <span id="breadProduct">Producto</span>
+  <a href="index.html">Inicio</a> › <span id="breadProduct">Producto</span>
 </div>
 
 <div class="product-page" id="productPage">
@@ -189,7 +189,7 @@
   let products = [];
   let product  = null;
 
-  // Carrito compartido con sage-kids.html vía sessionStorage (misma clave 'sk_cart'),
+  // Carrito compartido con index.html vía sessionStorage (misma clave 'sk_cart'),
   // así que no se pierde al navegar entre la tienda y la página de producto.
   let cart     = JSON.parse(sessionStorage.getItem('sk_cart') || '[]');
   let selSize  = null;
@@ -210,7 +210,7 @@
 
   function renderProductPage() {
   if (!product) {
-    document.getElementById('productPage').innerHTML = '<p style="padding:64px 24px;text-align:center;color:var(--muted)">Producto no encontrado. <a href="sage-kids.html" style="color:var(--green)">Volver a la tienda</a></p>';
+    document.getElementById('productPage').innerHTML = '<p style="padding:64px 24px;text-align:center;color:var(--muted)">Producto no encontrado. <a href="index.html" style="color:var(--green)">Volver a la tienda</a></p>';
   } else {
     document.title = product.name + ' – Sage Kids';
     document.getElementById('breadProduct').textContent = product.name;
@@ -343,8 +343,8 @@
   function removeItem(key) { cart = cart.filter(x => x.cartKey !== key); saveCart(); updateCartCount(); renderSidebar(); }
 
   function goCheckout() {
-    // El carrito ya vive en sessionStorage bajo 'sk_cart' (misma clave que sage-kids.html),
-    // así que sólo hace falta redirigir; sage-kids.html abrirá el checkout automáticamente.
+    // El carrito ya vive en sessionStorage bajo 'sk_cart' (misma clave que index.html),
+    // así que sólo hace falta redirigir; index.html abrirá el checkout automáticamente.
     window.location.href = 'index.html#checkout';
   }
 
