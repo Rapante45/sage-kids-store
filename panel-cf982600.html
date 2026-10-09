@@ -153,6 +153,19 @@
     }
     .btn-url-load:hover { background: #c5e8cc; }
 
+
+    /* Galería de fotos del producto */
+    .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px; margin-top: 14px; }
+    .g-item { position: relative; border-radius: 12px; overflow: hidden; border: 2px solid var(--green-light); background: var(--white); aspect-ratio: 1; }
+    .g-item.cover { border-color: var(--green); }
+    .g-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .g-cover { position: absolute; top: 6px; left: 6px; background: var(--green); color: var(--white); font-size: .65rem; font-weight: 800; padding: 2px 8px; border-radius: 50px; }
+    .g-actions { position: absolute; left: 0; right: 0; bottom: 0; display: flex; gap: 4px; justify-content: center; padding: 5px; background: linear-gradient(transparent, rgba(0,0,0,.55)); }
+    .g-actions button { border: none; background: rgba(255,255,255,.92); color: var(--green); border-radius: 6px; width: 28px; height: 26px; font-weight: 800; cursor: pointer; font-size: .8rem; }
+    .g-actions button:disabled { opacity: .35; cursor: not-allowed; }
+    .g-actions .g-del { background: var(--danger-light); color: var(--danger); }
+    .g-hint { font-size: .78rem; color: var(--muted); margin-top: 8px; }
+
     .sizes-check { display: flex; gap: 10px; flex-wrap: wrap; }
     .size-chk {
       display: flex; align-items: center; gap: 5px;
@@ -487,19 +500,20 @@
             <div class="color-badge-row" id="colorRow"></div>
           </div>
 
-          <!-- Imagen -->
+          <!-- Galería de fotos -->
           <div class="fld form-full">
-            <label>Imagen del producto *</label>
+            <label>Fotos del producto — <span id="galleryCount">0/8</span> · la primera es la portada</label>
             <div class="img-upload-area" id="uploadArea">
-              <input type="file" accept="image/*" onchange="handleFileUpload(event)" id="fImgFile"/>
+              <input type="file" accept="image/*" multiple onchange="handleFileUpload(event)" id="fImgFile"/>
               <div class="upload-icon">📁</div>
-              <p>Arrastra una foto o haz clic para seleccionar<br/><small>JPG, PNG, WEBP · hasta 30MB (se optimiza sola)</small></p>
-              <img id="imgPreview" class="img-preview" alt="preview"/>
+              <p>Haz clic o arrastra varias fotos a la vez<br/><small>JPG, PNG, WEBP · hasta 30MB c/u (se optimizan solas) · recomendado: 4 o más</small></p>
             </div>
             <div class="img-url-row">
-              <input type="text" id="fImgUrl" placeholder="O pega la URL de una imagen https://..." oninput="previewUrl(this.value)"/>
-              <button class="btn-url-load" onclick="previewUrl(document.getElementById('fImgUrl').value)">Ver</button>
+              <input type="text" id="fImgUrl" placeholder="O pega la URL de una imagen https://..."/>
+              <button type="button" class="btn-url-load" onclick="addPhotoUrl()">Agregar</button>
             </div>
+            <div class="gallery-grid" id="galleryGrid"></div>
+            <div class="g-hint">Usa ◀ ▶ para cambiar el orden. La foto con la etiqueta "Portada" es la que se ve en la tienda.</div>
           </div>
 
         </div><!-- /form-grid -->
@@ -612,8 +626,9 @@ let editingId = null;
 let selectedColor = '#fde8ef';
 let selectedSizes = [];
 let pendingDeleteId = null;
-let imgBase64 = null;   // foto antigua ya guardada como texto (productos viejos)
-let imgBlob   = null;   // foto nueva, ya comprimida, lista para subir a Storage
+// Galería del producto en edición: cada item es { url, preview } (ya subida) o { blob, preview } (nueva)
+let gallery = [];
+const MAX_PHOTOS = 8;
 
 const COLORS = ['#fde8ef','#daeeff','#fef3e2','#e0f5e8','#fff0d6','#e8ecff','#e6f5f0','#d6eeff','#f5e6ff','#e8f0fe'];
 const SIZES_BY_CAT = {
@@ -897,52 +912,79 @@ async function compressImage(file, maxDim = 1400, quality = 0.82) {
   );
 }
 
+function renderGallery() {
+  const grid = document.getElementById('galleryGrid');
+  if (!grid) return;
+  grid.innerHTML = gallery.map((g, i) => `
+    <div class="g-item ${i === 0 ? 'cover' : ''}">
+      <img src="${g.preview}" alt="Foto ${i + 1}"/>
+      ${i === 0 ? '<span class="g-cover">Portada</span>' : ''}
+      <div class="g-actions">
+        <button type="button" onclick="movePhoto(${i}, -1)" ${i === 0 ? 'disabled' : ''} title="Mover a la izquierda">◀</button>
+        <button type="button" onclick="movePhoto(${i}, 1)" ${i === gallery.length - 1 ? 'disabled' : ''} title="Mover a la derecha">▶</button>
+        <button type="button" class="g-del" onclick="removePhoto(${i})" title="Quitar">✕</button>
+      </div>
+    </div>`).join('');
+  document.getElementById('galleryCount').textContent = `${gallery.length}/${MAX_PHOTOS}`;
+}
+
+function movePhoto(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= gallery.length) return;
+  [gallery[i], gallery[j]] = [gallery[j], gallery[i]];
+  renderGallery();
+}
+
+function removePhoto(i) {
+  gallery.splice(i, 1);
+  renderGallery();
+}
+
 async function handleFileUpload(e) {
-  const file = e.target.files[0];
-  if (!file) return;
-  if (!file.type.startsWith('image/')) { showToast('⚠️ Ese archivo no es una imagen', true); return; }
-  if (file.size > 30 * 1024 * 1024) { showToast('⚠️ La imagen supera 30MB', true); return; }
-  try {
-    showToast('⏳ Optimizando foto...');
-    imgBlob = await compressImage(file);
-    imgBase64 = null;
-    const preview = document.getElementById('imgPreview');
-    preview.src = URL.createObjectURL(imgBlob);
-    preview.style.display = 'block';
-    document.getElementById('fImgUrl').value = '';
-    const mb = (file.size / 1048576).toFixed(1), kb = Math.round(imgBlob.size / 1024);
-    showToast(`✅ Foto lista: ${mb} MB → ${kb} KB`);
-  } catch (err) {
-    imgBlob = null;
-    showToast('⚠️ No se pudo leer la foto (si es HEIC, conviértela a JPG)', true);
+  const files = [...e.target.files];
+  e.target.value = '';   // permite volver a elegir las mismas fotos
+  if (!files.length) return;
+
+  const slots = MAX_PHOTOS - gallery.length;
+  if (slots <= 0) { showToast(`⚠️ Máximo ${MAX_PHOTOS} fotos por producto`, true); return; }
+  const toProcess = files.slice(0, slots);
+  if (files.length > slots) showToast(`⚠️ Solo caben ${slots} más; se agregarán las primeras ${slots}`, true);
+
+  let ok = 0, fail = 0;
+  for (const file of toProcess) {
+    if (!file.type.startsWith('image/')) { fail++; continue; }
+    if (file.size > 30 * 1024 * 1024) { fail++; continue; }
+    try {
+      showToast(`⏳ Optimizando foto ${ok + fail + 1}/${toProcess.length}...`);
+      const blob = await compressImage(file);
+      gallery.push({ blob, preview: URL.createObjectURL(blob) });
+      ok++;
+      renderGallery();
+    } catch (err) { fail++; }
   }
+  if (ok) showToast(`✅ ${ok} foto(s) lista(s)` + (fail ? ` · ${fail} no se pudieron leer (¿HEIC o más de 30MB?)` : ''));
+  else showToast('⚠️ No se pudo leer ninguna foto (si es HEIC, conviértela a JPG)', true);
 }
 
-// Sube la foto comprimida a Supabase Storage y devuelve su URL pública
-async function uploadProductImage(blob) {
-  const path = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-  const { error } = await sb.storage.from('product-images')
-    .upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
-  if (error) throw error;
-  return sb.storage.from('product-images').getPublicUrl(path).data.publicUrl;
-}
-
-function previewUrl(url) {
+function addPhotoUrl() {
+  const input = document.getElementById('fImgUrl');
+  const url = input.value.trim();
   if (!url) return;
-  const preview = document.getElementById('imgPreview');
-  preview.src = url;
-  preview.style.display = 'block';
-  imgBase64 = null; imgBlob = null;
+  if (!/^https?:\/\//i.test(url)) { showToast('⚠️ La URL debe empezar con https://', true); return; }
+  if (gallery.length >= MAX_PHOTOS) { showToast(`⚠️ Máximo ${MAX_PHOTOS} fotos por producto`, true); return; }
+  gallery.push({ url, preview: url });
+  input.value = '';
+  renderGallery();
 }
 
 function resetForm() {
-  editingId = null; imgBase64 = null; imgBlob = null; selectedSizes = [];
+  editingId = null; gallery = []; selectedSizes = [];
   document.getElementById('formTitle').textContent = 'Agregar producto';
   ['fName','fPrice','fOldPrice','fDesc','fImgUrl'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fCat').value = '';
   document.getElementById('fBadge').value = '';
   document.getElementById('fStock').value = '';
-  document.getElementById('imgPreview').style.display = 'none';
+  renderGallery();
   document.getElementById('sizesCheck').innerHTML = '';
   selectedColor = '#fde8ef';
   initColorPicker();
@@ -952,7 +994,6 @@ function editProduct(id) {
   const p = products.find(x => x.id === id);
   if (!p) return;
   editingId = id;
-  imgBlob = null; imgBase64 = null;
   selectedSizes = [...(p.sizes || [])];
   selectedColor = p.bg || '#fde8ef';
   document.getElementById('formTitle').textContent = 'Editar producto';
@@ -964,14 +1005,10 @@ function editProduct(id) {
   document.getElementById('fStock').value    = p.stock || 0;
   document.getElementById('fDesc').value     = p.description || '';
   updateSizes();
-  if (p.img) {
-    document.getElementById('imgPreview').src = p.img;
-    document.getElementById('imgPreview').style.display = 'block';
-    if (p.img.startsWith('http')) document.getElementById('fImgUrl').value = p.img;
-    else imgBase64 = p.img;
-  } else {
-    document.getElementById('imgPreview').style.display = 'none';
-  }
+  // Galería: usa p.images si existe; si es un producto viejo, su única foto (p.img)
+  const urls = (p.images && p.images.length) ? p.images : (p.img ? [p.img] : []);
+  gallery = urls.map(u => ({ url: u, preview: u }));
+  renderGallery();
   initColorPicker();
   showTab('add', document.querySelector('.tab-btn:nth-child(3)'));
 }
@@ -980,17 +1017,17 @@ async function saveProduct() {
   const name  = document.getElementById('fName').value.trim();
   const cat   = document.getElementById('fCat').value;
   const price = parseFloat(document.getElementById('fPrice').value);
-  const url   = document.getElementById('fImgUrl').value.trim();
   if (!name || !cat || isNaN(price)) { showToast('⚠️ Nombre, categoría y precio son obligatorios', true); return; }
-  let imgFinal = imgBase64 || url || null;
-  if (imgBlob) {
-    try {
-      showToast('⏳ Subiendo foto...');
-      imgFinal = await uploadProductImage(imgBlob);
-    } catch (err) {
-      showToast('⚠️ No se pudo subir la foto: ' + err.message, true);
-      return;
-    }
+
+  // Sube las fotos nuevas (en paralelo) y conserva el orden de la galería
+  let urls;
+  try {
+    const nuevas = gallery.filter(g => g.blob).length;
+    if (nuevas) showToast(`⏳ Subiendo ${nuevas} foto(s)...`);
+    urls = await Promise.all(gallery.map(g => g.blob ? uploadProductImage(g.blob) : Promise.resolve(g.url)));
+  } catch (err) {
+    showToast('⚠️ No se pudieron subir las fotos: ' + err.message, true);
+    return;
   }
 
   const payload = {
@@ -1004,7 +1041,8 @@ async function saveProduct() {
     sizes:       [...selectedSizes],
     bg:          selectedColor,
     emoji:       catEmoji(cat),
-    img:         imgFinal,
+    img:         urls[0] || null,   // portada (la usa la tienda en las tarjetas)
+    images:      urls,              // galería completa (carrusel)
   };
 
   let error;
