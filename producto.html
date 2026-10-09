@@ -36,6 +36,19 @@
     .thumb.active{border-color:var(--green);}
     .thumb img{width:100%;height:100%;object-fit:cover;}
 
+
+    /* Carrusel */
+    .main-img.carousel{position:relative;display:block;font-size:0;}
+    .car-track{display:flex;height:100%;transition:transform .35s ease;}
+    .car-slide{min-width:100%;height:100%;}
+    .car-slide img{width:100%;height:100%;object-fit:cover;display:block;}
+    .car-btn{position:absolute;top:50%;transform:translateY(-50%);width:42px;height:42px;border-radius:50%;border:none;background:rgba(255,255,255,.9);color:var(--green);font-size:1.6rem;line-height:1;font-weight:800;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:2;display:flex;align-items:center;justify-content:center;font-family:'Nunito',sans-serif;}
+    .car-btn:hover{background:var(--white);}
+    .car-btn.prev{left:12px;}
+    .car-btn.next{right:12px;}
+    .car-counter{position:absolute;bottom:12px;right:14px;background:rgba(0,0,0,.55);color:#fff;font-size:.75rem;font-weight:700;padding:3px 11px;border-radius:50px;z-index:2;font-family:'Nunito',sans-serif;}
+    .thumb-row{flex-wrap:wrap;}
+
     /* Info */
     .product-info-panel{padding-top:8px;}
     .pi-badge{display:inline-block;border-radius:50px;padding:3px 12px;font-size:.72rem;font-weight:800;margin-bottom:10px;}
@@ -217,18 +230,26 @@
 
     const saving = product.old_price ? Math.round(100 - (product.price / product.old_price) * 100) : 0;
     const sizeList = (product.sizes && product.sizes.length) ? product.sizes : ['S','M','L','XL'];
-    const imgHtml  = product.img
-      ? `<img src="${product.img}" alt="${product.name}"/>`
-      : product.emoji;
-    const thumbHtml = product.img
-      ? `<div class="thumb active"><img src="${product.img}" alt=""/></div>`
-      : `<div class="thumb active" style="background:${product.bg}">${product.emoji}</div>`;
+    // Fotos del producto: galería completa, o la foto única de los productos antiguos
+    const photos = (product.images && product.images.length) ? product.images : (product.img ? [product.img] : []);
+    const galleryHtml = photos.length
+      ? `<div class="main-img carousel" id="mainImg" style="background:${product.bg}">
+           <div class="car-track" id="carTrack">
+             ${photos.map(src => `<div class="car-slide"><img src="${src}" alt="${product.name}"/></div>`).join('')}
+           </div>
+           ${photos.length > 1 ? `<button class="car-btn prev" onclick="carGo(-1)" aria-label="Foto anterior">‹</button>
+           <button class="car-btn next" onclick="carGo(1)" aria-label="Foto siguiente">›</button>
+           <div class="car-counter" id="carCounter">1 / ${photos.length}</div>` : ''}
+         </div>
+         ${photos.length > 1 ? `<div class="thumb-row" id="thumbRow">
+           ${photos.map((src, i) => `<div class="thumb ${i === 0 ? 'active' : ''}" onclick="carSet(${i})"><img src="${src}" alt=""/></div>`).join('')}
+         </div>` : ''}`
+      : `<div class="main-img" style="background:${product.bg}" id="mainImg">${product.emoji}</div>`;
     const outOfStock = (product.stock || 0) <= 0;
 
     document.getElementById('productPage').innerHTML = `
       <div class="gallery">
-        <div class="main-img" style="background:${product.bg}" id="mainImg">${imgHtml}</div>
-        <div class="thumb-row">${thumbHtml}</div>
+        ${galleryHtml}
       </div>
 
       <div class="product-info-panel">
@@ -267,6 +288,8 @@
       </div>
     `;
 
+    initCarousel(photos.length);
+
     // Related products (same category, excluding current)
     const related = products.filter(p => p.cat === product.cat && p.id !== product.id).slice(0, 4);
     document.getElementById('relatedGrid').innerHTML = related.length
@@ -283,6 +306,39 @@
       : '<p style="color:var(--muted);font-size:.9rem">No hay más productos en esta categoría aún.</p>';
   }
   } // fin renderProductPage
+
+  // ── Carrusel de fotos ──
+  let carIdx = 0, carTotal = 0;
+  function carSet(i) {
+    if (!carTotal) return;
+    carIdx = (i + carTotal) % carTotal;
+    const track = document.getElementById('carTrack');
+    if (track) track.style.transform = `translateX(-${carIdx * 100}%)`;
+    document.querySelectorAll('#thumbRow .thumb').forEach((t, k) => t.classList.toggle('active', k === carIdx));
+    const c = document.getElementById('carCounter');
+    if (c) c.textContent = `${carIdx + 1} / ${carTotal}`;
+  }
+  function carGo(d) { carSet(carIdx + d); }
+  function initCarousel(total) {
+    carIdx = 0; carTotal = total;
+    if (total < 2) return;
+    // Deslizar con el dedo en celular
+    const el = document.getElementById('mainImg');
+    let x0 = null;
+    el.addEventListener('touchstart', e => { x0 = e.touches[0].clientX; }, { passive: true });
+    el.addEventListener('touchend', e => {
+      if (x0 === null) return;
+      const dx = e.changedTouches[0].clientX - x0;
+      if (Math.abs(dx) > 40) carGo(dx < 0 ? 1 : -1);
+      x0 = null;
+    });
+  }
+  // Flechas del teclado en computadora
+  document.addEventListener('keydown', e => {
+    if (carTotal < 2) return;
+    if (e.key === 'ArrowLeft') carGo(-1);
+    if (e.key === 'ArrowRight') carGo(1);
+  });
 
   function selectSize(btn, size) {
     document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
