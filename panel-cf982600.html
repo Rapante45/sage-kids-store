@@ -451,6 +451,9 @@
               <option value="bebé">🐣 Bebé</option>
               <option value="outerwear">🧥 Abrigos</option>
               <option value="calzado">👟 Calzado</option>
+              <option value="prod-bebe">🍼 Productos para bebés</option>
+              <option value="prod-nino">🧸 Productos para niños</option>
+              <option value="mochilas">🎒 Mochilas</option>
             </select>
           </div>
 
@@ -489,7 +492,7 @@
           </div>
 
           <!-- Tallas -->
-          <div class="fld form-full">
+          <div class="fld form-full" id="sizesWrap">
             <label>Tallas disponibles</label>
             <div class="sizes-check" id="sizesCheck"></div>
           </div>
@@ -631,10 +634,13 @@ let gallery = [];
 const MAX_PHOTOS = 8;
 
 const COLORS = ['#fde8ef','#daeeff','#fef3e2','#e0f5e8','#fff0d6','#e8ecff','#e6f5f0','#d6eeff','#f5e6ff','#e8f0fe'];
+const CLOTHES_SIZES = ['0-3 meses','3-6 meses','6-9 meses','12-18 meses','18-24 meses','2 años','3 años','4 años','5 años','6 y 7 años'];
+// Categorías que se venden por unidad: sin tallas, solo stock
+const NO_SIZE_CATS = ['prod-bebe','prod-nino','mochilas'];
 const SIZES_BY_CAT = {
-  niña:      ['2T','3T','4T','5','6','7','8','10','12'],
-  niño:      ['2T','3T','4T','5','6','7','8','10','12'],
-  bebé:      ['0-3m','3-6m','6-12m','12-18m','18-24m'],
+  niña:      CLOTHES_SIZES,
+  niño:      CLOTHES_SIZES,
+  bebé:      CLOTHES_SIZES,
   outerwear: ['XS','S','M','L','XL'],
   calzado:   ['19','20','21','22','23','24','25','26','27','28']
 };
@@ -864,7 +870,12 @@ function selectColor(color, el) {
 
 function updateSizes() {
   const cat = document.getElementById('fCat').value;
-  const sizes = SIZES_BY_CAT[cat] || ['S','M','L','XL'];
+  const noSizes = NO_SIZE_CATS.includes(cat);
+  document.getElementById('sizesWrap').style.display = noSizes ? 'none' : '';
+  if (noSizes) { selectedSizes = []; document.getElementById('sizesCheck').innerHTML = ''; return; }
+  const base = SIZES_BY_CAT[cat] || ['S','M','L','XL'];
+  // conserva tallas antiguas que el producto ya tenía, para no perderlas al editar
+  const sizes = [...base, ...selectedSizes.filter(x => !base.includes(x))];
   document.getElementById('sizesCheck').innerHTML = sizes.map(s => `
     <label class="size-chk ${selectedSizes.includes(s) ? 'checked' : ''}">
       <input type="checkbox" value="${s}" ${selectedSizes.includes(s) ? 'checked' : ''}
@@ -995,6 +1006,7 @@ function resetForm() {
   document.getElementById('fStock').value = '';
   renderGallery();
   document.getElementById('sizesCheck').innerHTML = '';
+  document.getElementById('sizesWrap').style.display = '';
   selectedColor = '#fde8ef';
   initColorPicker();
 }
@@ -1125,10 +1137,10 @@ async function loadProducts() {
 
 // ══ HELPERS ══
 function catLabel(c) {
-  return {niña:'👗 Niñas',niño:'🚀 Niños',bebé:'🐣 Bebé',outerwear:'🧥 Abrigos',calzado:'👟 Calzado'}[c] || c;
+  return {niña:'👗 Niñas',niño:'🚀 Niños',bebé:'🐣 Bebé',outerwear:'🧥 Abrigos',calzado:'👟 Calzado','prod-bebe':'🍼 Prod. bebés','prod-nino':'🧸 Prod. niños',mochilas:'🎒 Mochilas'}[c] || c;
 }
 function catEmoji(c) {
-  return {niña:'👗',niño:'🚀',bebé:'🐣',outerwear:'⭐',calzado:'👟'}[c] || '📦';
+  return {niña:'👗',niño:'🚀',bebé:'🐣',outerwear:'⭐',calzado:'👟','prod-bebe':'🍼','prod-nino':'🧸',mochilas:'🎒'}[c] || '📦';
 }
 
 function showToast(msg, isError = false) {
