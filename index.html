@@ -317,7 +317,7 @@
     <p>Todo lo que tu pequeño necesita</p>
   </div>
   <div class="search-bar">
-    <input type="text" id="searchInput" placeholder="🔍  Buscar ropa, bebé, abrigos..." oninput="handleSearch(this.value)"/>
+    <input type="text" id="searchInput" placeholder="🔍  Buscar ropa, mochilas, bebé..." oninput="handleSearch(this.value)"/>
     <button onclick="handleSearch(document.getElementById('searchInput').value)">Buscar</button>
   </div>
   <div class="categories" style="margin-top:20px">
@@ -327,7 +327,9 @@
     <button class="cat-pill" onclick="filterCat('bebé', this)">🐣 Bebé</button>
     <button class="cat-pill" onclick="filterCat('outerwear', this)">🧥 Abrigos</button>
     <button class="cat-pill" onclick="filterCat('calzado', this)">👟 Calzado</button>
-    <button class="cat-pill" onclick="filterCat('accesorios', this)">👟 Accesorios</button>
+    <button class="cat-pill" onclick="filterCat('prod-bebe', this)">🍼 Productos para bebés</button>
+    <button class="cat-pill" onclick="filterCat('prod-nino', this)">🧸 Productos para niños</button>
+    <button class="cat-pill" onclick="filterCat('mochilas', this)">🎒 Mochilas</button>
   </div>
 </div>
 
@@ -403,7 +405,7 @@
     <h3 id="pmName"></h3>
     <div class="pm-price" id="pmPrice"></div>
     <a class="pm-product-link" id="pmLink" href="#">Ver página completa del producto →</a>
-    <div class="pm-label">Talla</div>
+    <div class="pm-label" id="pmSizeLabel">Talla</div>
     <div class="size-grid" id="pmSizes"></div>
     <div class="pm-label">Cantidad</div>
     <div class="qty-control">
@@ -470,7 +472,7 @@
         <div class="form-group"><label>Referencia / instrucciones (opcional)</label><input type="text" id="shipRef" placeholder="Portón café, frente al parque..."/></div>
 
         <div class="section-label" style="margin-top:20px">🚚 Método de entrega</div>
-        <div class="delivery-note">🚚 Envío estándar — Q20 · Entrega en 2 a 5 días hábiles</div>
+        <div class="delivery-note">🚚 Envío estándar — Q25 · Entrega en 2 a 5 días hábiles</div>
 
         <button class="btn-pay" onclick="goToStep2()">Continuar al pago →</button>
       </div>
@@ -621,7 +623,11 @@
     }).join('');
   }
 
-  function catLabel(c) { return {niña:'Ropa niña',niño:'Ropa niño',bebé:'Ropa bebé',outerwear:'Abrigo',calzado:'Calzado'}[c]||c; }
+  function catLabel(c) { return {niña:'Ropa niña',niño:'Ropa niño',bebé:'Ropa bebé',outerwear:'Abrigo',calzado:'Calzado','prod-bebe':'Productos para bebés','prod-nino':'Productos para niños',mochilas:'Mochilas'}[c]||c; }
+  // Categorías que se venden por unidad (sin talla)
+  const NO_SIZE_CATS = ['prod-bebe','prod-nino','mochilas'];
+  function hasSizes(p) { return !NO_SIZE_CATS.includes(p.cat); }
+  function sizeTxt(item) { return item.size ? `Talla: ${item.size} · ` : ''; }
   function filterCat(cat, btn) { currentFilter = cat; document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active')); btn.classList.add('active'); renderProducts(cat); }
   function handleSearch(val) { searchQuery = val.toLowerCase().trim(); renderProducts(currentFilter); }
 
@@ -640,8 +646,11 @@
     document.getElementById('pmPrice').innerHTML = op + `Q${currentProduct.price}`;
     document.getElementById('pmLink').href = `producto.html?id=${id}`;
     document.getElementById('pmQty').textContent = 1;
+    const withSizes = hasSizes(currentProduct);
+    document.getElementById('pmSizeLabel').style.display = withSizes ? '' : 'none';
+    document.getElementById('pmSizes').style.display = withSizes ? '' : 'none';
     const sizeList = (currentProduct.sizes && currentProduct.sizes.length) ? currentProduct.sizes : ['S','M','L','XL'];
-    document.getElementById('pmSizes').innerHTML = sizeList.map(s => `<button class="size-btn" onclick="selectSize(this,'${s}')">${s}</button>`).join('');
+    document.getElementById('pmSizes').innerHTML = withSizes ? sizeList.map(s => `<button class="size-btn" onclick="selectSize(this,'${s}')">${s}</button>`).join('') : '';
     document.getElementById('pmStockNote').textContent = currentProduct.stock > 0 ? `${currentProduct.stock} disponibles` : '⚠️ Sin stock';
     document.getElementById('productModalOverlay').classList.add('open');
   }
@@ -649,17 +658,19 @@
   function selectSize(btn, size) { document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active')); btn.classList.add('active'); currentSize = size; }
   function changeQty(d) { currentQty = Math.max(1, currentQty + d); document.getElementById('pmQty').textContent = currentQty; }
   function confirmAddToCart() {
-    if (!currentSize) { showToast('⚠️ Selecciona una talla'); return; }
-    const p = currentProduct, key = `${p.id}-${currentSize}`;
+    const p = currentProduct;
+    if (hasSizes(p) && !currentSize) { showToast('⚠️ Selecciona una talla'); return; }
+    const size = hasSizes(p) ? currentSize : '';
+    const key = `${p.id}-${size}`;
     const ex = cart.find(x => x.cartKey === key);
     const alreadyInCart = ex ? ex.qty : 0;
     if (alreadyInCart + currentQty > (p.stock || 0)) {
       showToast(`⚠️ Solo hay ${p.stock || 0} disponibles`);
       return;
     }
-    if (ex) ex.qty += currentQty; else cart.push({...p, qty:currentQty, size:currentSize, cartKey:key});
+    if (ex) ex.qty += currentQty; else cart.push({...p, qty:currentQty, size:size, cartKey:key});
     saveCart(); updateCartCount(); closeProductModal();
-    showToast(`✅ ${p.emoji} ${p.name} (${currentSize}) ×${currentQty} agregado`);
+    showToast(`✅ ${p.emoji} ${p.name}${size ? ' ('+size+')' : ''} ×${currentQty} agregado`);
   }
 
   // ── Cart ──
@@ -672,7 +683,7 @@
       <div class="cart-item">
         <div class="cart-item-left">
           <span class="cart-item-emoji">${item.emoji}</span>
-          <div><div class="cart-item-name">${item.name}</div><div style="font-size:.75rem;color:var(--muted)">Talla: ${item.size} · Cant: ${item.qty}</div></div>
+          <div><div class="cart-item-name">${item.name}</div><div style="font-size:.75rem;color:var(--muted)">${sizeTxt(item)}Cant: ${item.qty}</div></div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span class="cart-item-price">Q${item.price*item.qty}</span>
@@ -720,7 +731,7 @@
     const subtotal = cart.reduce((a,b)=>a+b.price*b.qty,0);
     const total = subtotal + DELIVERY_COST;
     document.getElementById('orderSummary').innerHTML = `
-      ${cart.map(item=>`<div class="order-summary-item"><span>${item.emoji} ${item.name} (${item.size}) ×${item.qty}</span><span>Q${item.price*item.qty}</span></div>`).join('')}
+      ${cart.map(item=>`<div class="order-summary-item"><span>${item.emoji} ${item.name}${item.size ? ' ('+item.size+')' : ''} ×${item.qty}</span><span>Q${item.price*item.qty}</span></div>`).join('')}
       <div class="order-summary-item"><span>🚚 Envío</span><span>Q${DELIVERY_COST}</span></div>
       <div class="order-summary-total"><span>Total</span><span>Q${total}</span></div>`;
   }
@@ -775,7 +786,7 @@
     msg += `🚚 *Entrega:* Envío estándar (2-5 días)\n\n`;
     msg += `🧾 *Productos:*\n`;
     cart.forEach(item => {
-      msg += `• ${item.name} (Talla ${item.size}) ×${item.qty} — Q${item.price * item.qty}\n`;
+      msg += `• ${item.name}${item.size ? ' (Talla ' + item.size + ')' : ''} ×${item.qty} — Q${item.price * item.qty}\n`;
     });
     msg += `\n💰 Subtotal: Q${subtotal}\n`;
     msg += `🚚 Envío: Q${DELIVERY_COST}\n`;
