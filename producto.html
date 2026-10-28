@@ -209,7 +209,10 @@
   let selQty   = 1;
 
   function saveCart() { sessionStorage.setItem('sk_cart', JSON.stringify(cart)); }
-  function catLabel(c){return{niña:'Ropa niña',niño:'Ropa niño',bebé:'Ropa bebé',outerwear:'Abrigo',calzado:'Calzado'}[c]||c;}
+  function catLabel(c){return{niña:'Ropa niña',niño:'Ropa niño',bebé:'Ropa bebé',outerwear:'Abrigo',calzado:'Calzado','prod-bebe':'Productos para bebés','prod-nino':'Productos para niños',mochilas:'Mochilas'}[c]||c;}
+  // Categorías que se venden por unidad (sin talla)
+  const NO_SIZE_CATS = ['prod-bebe','prod-nino','mochilas'];
+  function hasSizes(p){return !NO_SIZE_CATS.includes(p.cat);}
 
   async function initPage() {
     const params = new URLSearchParams(location.search);
@@ -264,10 +267,10 @@
         </div>
         <p class="pi-desc">${product.description || 'Prenda de alta calidad para los más pequeños de la casa.'}</p>
 
-        <div class="pi-label">Selecciona tu talla</div>
+        ${hasSizes(product) ? `<div class="pi-label">Selecciona tu talla</div>
         <div class="size-grid" id="sizeGrid">
           ${sizeList.map(s => `<button class="size-btn" onclick="selectSize(this,'${s}')">${s}</button>`).join('')}
-        </div>
+        </div>` : ''}
 
         <div class="pi-label">Cantidad</div>
         <div class="qty-row">
@@ -353,8 +356,10 @@
 
   function addToCart() {
     if (!product) return;
-    if (!selSize) { showToast('⚠️ Selecciona una talla primero'); return; }
-    const key = `${product.id}-${selSize}`;
+    const withSizes = hasSizes(product);
+    if (withSizes && !selSize) { showToast('⚠️ Selecciona una talla primero'); return; }
+    const size = withSizes ? selSize : '';
+    const key = `${product.id}-${size}`;
     const ex  = cart.find(x => x.cartKey === key);
     const alreadyInCart = ex ? ex.qty : 0;
     if (alreadyInCart + selQty > (product.stock || 0)) {
@@ -362,10 +367,10 @@
       return;
     }
     if (ex) ex.qty += selQty;
-    else cart.push({...product, qty:selQty, size:selSize, cartKey:key});
+    else cart.push({...product, qty:selQty, size:size, cartKey:key});
     saveCart();
     updateCartCount();
-    showToast(`✅ ${product.emoji} ${product.name} (${selSize}) ×${selQty} agregado`);
+    showToast(`✅ ${product.emoji} ${product.name}${size ? ' ('+size+')' : ''} ×${selQty} agregado`);
   }
 
   function updateCartCount() { document.getElementById('cartCount').textContent = cart.reduce((a,b)=>a+b.qty,0); }
@@ -383,7 +388,7 @@
       <div class="cart-item">
         <div class="cart-item-left">
           <span style="font-size:1.4rem">${item.emoji}</span>
-          <div><div style="font-weight:800">${item.name}</div><div style="font-size:.75rem;color:var(--muted)">Talla: ${item.size} · Cant: ${item.qty}</div></div>
+          <div><div style="font-weight:800">${item.name}</div><div style="font-size:.75rem;color:var(--muted)">${item.size ? 'Talla: '+item.size+' · ' : ''}Cant: ${item.qty}</div></div>
         </div>
         <div style="display:flex;align-items:center;gap:8px">
           <span style="font-weight:800;color:var(--green)">Q${item.price*item.qty}</span>
